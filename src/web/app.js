@@ -1125,7 +1125,40 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Theme management
+function initTheme() {
+  const saved = localStorage.getItem("opencode-mem-theme");
+  if (saved) {
+    return saved;
+  }
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+    return "light";
+  }
+  return "dark";
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("opencode-mem-theme", theme);
+  const icon = document.getElementById("theme-icon");
+  if (icon) {
+    icon.setAttribute("data-lucide", theme === "dark" ? "sun" : "moon");
+    lucide.createIcons();
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  setTheme(current === "dark" ? "light" : "dark");
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+  // Initialize theme
+  const savedTheme = initTheme();
+  setTheme(savedTheme);
+
+  document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
+
   document.getElementById("tab-project").addEventListener("click", () => switchView("project"));
   document.getElementById("tab-profile").addEventListener("click", () => switchView("profile"));
   document.getElementById("refresh-profile-btn")?.addEventListener("click", refreshProfile);
