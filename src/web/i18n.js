@@ -1,5 +1,6 @@
 const translations = {
   en: {
+    "page-title": "OpenCode Memory Explorer",
     title: "┌─ OPENCODE MEMORY EXPLORER ─┐",
     "tab-project": "PROJECT MEMORIES",
     "tab-profile": "USER PROFILE",
@@ -99,15 +100,35 @@ const translations = {
     "text-generated-above": "Generated memory above",
     "text-from-below": "From prompt below",
     "btn-refresh": "Refresh",
+    "profile-refresh-success": "Profile refresh triggered with confidence decay",
     "migration-found-tags": "Found {count} memories needing technical tags.",
     "migration-stopped": "Migration stopped: maximum attempts reached",
     "migration-shards-mismatch": "{count} shard(s) have different dimensions",
     "migration-dimension-mismatch": "dimension mismatch detected",
     "migration-mismatch-details":
       "Model mismatch: Config uses {configDimensions}D ({configModel}), but {shardInfo}.",
+    "search-results": "SEARCH RESULTS ({count})",
+    "label-general": "General",
+    "btn-history": "History",
+    "label-id": "ID:",
+    "tooltip-pin": "Pin",
+    "tooltip-unpin": "Unpin",
+    "error-prefix": "Error:",
+    "title-github": "View on GitHub",
+    "title-lang-toggle": "Switch Language",
+    "migration-strategy-fresh": "Fresh Start (Delete All)",
+    "migration-strategy-reembed": "Re-embed (Preserve Data)",
+    "migration-confirm-fresh":
+      "Run Fresh Start migration?\n\nThis operation is IRREVERSIBLE and will:\n- DELETE all existing memories\n- Remove all shards\n\nContinue?",
+    "migration-confirm-reembed":
+      "Run Re-embed migration?\n\nThis operation is IRREVERSIBLE and will:\n- Re-embed all memories with new model\n- This may take several minutes\n\nContinue?",
+    "migration-complete-title": "Migration complete! ",
+    "migration-complete-fresh": "Deleted {shards} shard(s). Duration: {duration}s",
+    "migration-complete-reembed": "Re-embedded {count} memories. Duration: {duration}s",
   },
   zh: {
-    title: "┌─ OPENCODE MEMORY EXPLORER ─┐",
+    "page-title": "OpenCode 记忆管理",
+    title: "┌─ OPENCODE 记忆管理 ─┐",
     "tab-project": "项目记忆",
     "tab-profile": "用户画像",
     "label-tag": "标签:",
@@ -204,12 +225,31 @@ const translations = {
     "text-generated-above": "由上方记忆生成",
     "text-from-below": "来自下方提示词",
     "btn-refresh": "刷新",
+    "profile-refresh-success": "用户画像已刷新，已应用置信度衰减",
     "migration-found-tags": "发现 {count} 条需要技术标签的记忆。",
     "migration-stopped": "迁移已停止：达到最大尝试次数",
     "migration-shards-mismatch": "{count} 个分片具有不同的维度",
     "migration-dimension-mismatch": "检测到维度不匹配",
     "migration-mismatch-details":
       "模型不匹配：配置使用 {configDimensions}D ({configModel})，但{shardInfo}。",
+    "search-results": "搜索结果 ({count})",
+    "label-general": "通用",
+    "btn-history": "历史记录",
+    "label-id": "ID:",
+    "tooltip-pin": "置顶",
+    "tooltip-unpin": "取消置顶",
+    "error-prefix": "错误:",
+    "title-github": "在 GitHub 上查看",
+    "title-lang-toggle": "切换语言",
+    "migration-strategy-fresh": "重新开始 (删除所有)",
+    "migration-strategy-reembed": "重新向量化 (保留数据)",
+    "migration-confirm-fresh":
+      "执行重新开始迁移？\n\n此操作不可逆，将：\n- 删除所有现有记忆\n- 移除所有分片\n\n是否继续？",
+    "migration-confirm-reembed":
+      "执行重新向量化迁移？\n\n此操作不可逆，将：\n- 使用新模型重新向量化所有记忆\n- 这可能需要几分钟\n\n是否继续？",
+    "migration-complete-title": "迁移完成！",
+    "migration-complete-fresh": "已删除 {shards} 个分片。耗时：{duration}秒",
+    "migration-complete-reembed": "已重新嵌入 {count} 条记忆。耗时：{duration}秒",
   },
 };
 
@@ -258,6 +298,11 @@ function applyLanguage() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
     const key = el.getAttribute("data-i18n-placeholder");
     el.setAttribute("placeholder", t(key));
+  });
+
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-title");
+    el.setAttribute("title", t(key));
   });
 }
 
