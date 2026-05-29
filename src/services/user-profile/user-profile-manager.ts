@@ -4,7 +4,7 @@ import { connectionManager } from "../sqlite/connection-manager.js";
 import { CONFIG } from "../../config.js";
 import type { UserProfile, UserProfileChangelog, UserProfileData } from "./types.js";
 import { safeArray, safeObject } from "./profile-utils.js";
-import { log } from "../logger.js";
+import { log, logTrace } from "../logger.js";
 
 const Database = getDatabase();
 type DatabaseType = typeof Database.prototype;
@@ -264,7 +264,7 @@ export class UserProfileManager {
       });
 
     if (decayLogs.length > 0) {
-      log("applyConfidenceDecay: preferences evaluated", {
+      logTrace("applyConfidenceDecay: preferences evaluated", {
         profileId,
         total: decayLogs.length,
         decayed: decayLogs.filter((l) => l.action === "decayed").length,
