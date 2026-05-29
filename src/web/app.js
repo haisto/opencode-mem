@@ -154,8 +154,8 @@ function renderCombinedCard(pair) {
       : "";
 
   const pinButton = isPinned
-    ? `<button class="btn-pin pinned" onclick="unpinMemory('${memory.id}')" title="Unpin"><i data-lucide="pin" class="icon icon-filled"></i></button>`
-    : `<button class="btn-pin" onclick="pinMemory('${memory.id}')" title="Pin"><i data-lucide="pin" class="icon"></i></button>`;
+    ? `<button class="btn-pin pinned" onclick="unpinMemory('${memory.id}')" title="${t("tooltip-unpin")}"><i data-lucide="pin" class="icon icon-filled"></i></button>`
+    : `<button class="btn-pin" onclick="pinMemory('${memory.id}')" title="${t("tooltip-pin")}"><i data-lucide="pin" class="icon"></i></button>`;
 
   const createdDate = formatDate(memory.createdAt);
   const updatedDate =
@@ -200,7 +200,7 @@ function renderCombinedCard(pair) {
         <div class="memory-content markdown-content">${renderMarkdown(memory.content)}</div>
         <div class="memory-footer">
           ${dateInfo}
-          <span>ID: ${memory.id}</span>
+          <span>${t("label-id")} ${memory.id}</span>
         </div>
       </div>
     </div>
@@ -261,8 +261,8 @@ function renderMemoryCard(memory) {
   }
 
   const pinButton = isPinned
-    ? `<button class="btn-pin pinned" onclick="unpinMemory('${memory.id}')" title="Unpin"><i data-lucide="pin" class="icon icon-filled"></i></button>`
-    : `<button class="btn-pin" onclick="pinMemory('${memory.id}')" title="Pin"><i data-lucide="pin" class="icon"></i></button>`;
+    ? `<button class="btn-pin pinned" onclick="unpinMemory('${memory.id}')" title="${t("tooltip-unpin")}"><i data-lucide="pin" class="icon icon-filled"></i></button>`
+    : `<button class="btn-pin" onclick="pinMemory('${memory.id}')" title="${t("tooltip-pin")}"><i data-lucide="pin" class="icon"></i></button>`;
 
   const createdDate = formatDate(memory.createdAt);
   const updatedDate =
@@ -302,7 +302,7 @@ function renderMemoryCard(memory) {
       ${isLinked ? `<div class="link-indicator"><i data-lucide="arrow-up" class="icon-sm"></i> ${t("text-from-below")} <i data-lucide="arrow-down" class="icon-sm"></i></div>` : ""}
       <div class="memory-footer">
         ${dateInfo}
-        <span>ID: ${memory.id}</span>
+        <span>${t("label-id")} ${memory.id}</span>
       </div>
     </div>
   `;
@@ -359,7 +359,7 @@ function updatePagination() {
 
 function updateSectionTitle() {
   const title = state.isSearching
-    ? `└─ SEARCH RESULTS (${state.totalItems}) ──`
+    ? t("search-results", { count: state.totalItems })
     : t("section-project", { count: state.totalItems });
   document.getElementById("section-title").textContent = title;
 }
@@ -631,7 +631,7 @@ function showToast(message, type = "success") {
 
 function showError(message) {
   const container = document.getElementById("memories-list");
-  container.innerHTML = `<div class="error-state">Error: ${escapeHtml(message)}</div>`;
+  container.innerHTML = `<div class="error-state">${t("error-prefix")} ${escapeHtml(message)}</div>`;
 }
 
 function showRefreshIndicator(show) {
@@ -829,14 +829,8 @@ async function runMigration(strategy) {
     return;
   }
 
-  const strategyName =
-    strategy === "fresh-start" ? "Fresh Start (Delete All)" : "Re-embed (Preserve Data)";
-
-  if (
-    !confirm(
-      `Run ${strategyName} migration?\n\nThis operation is IRREVERSIBLE and will:\n${strategy === "fresh-start" ? "- DELETE all existing memories\n- Remove all shards" : "- Re-embed all memories with new model\n- This may take several minutes"}\n\nContinue?`
-    )
-  ) {
+  const confirmKey = strategy === "fresh-start" ? "migration-confirm-fresh" : "migration-confirm-reembed";
+  if (!confirm(t(confirmKey))) {
     return;
   }
 
@@ -849,13 +843,11 @@ async function runMigration(strategy) {
 
   if (result.success) {
     const data = result.data;
-    let message = `Migration complete! `;
-
-    if (strategy === "fresh-start") {
-      message += `Deleted ${data.deletedShards} shard(s). Duration: ${(data.duration / 1000).toFixed(2)}s`;
-    } else {
-      message += `Re-embedded ${data.reEmbeddedMemories} memories. Duration: ${(data.duration / 1000).toFixed(2)}s`;
-    }
+    const duration = (data.duration / 1000).toFixed(2);
+    let message =
+      strategy === "fresh-start"
+        ? t("migration-complete-title") + t("migration-complete-fresh", { shards: data.deletedShards, duration })
+        : t("migration-complete-title") + t("migration-complete-reembed", { count: data.reEmbeddedMemories, duration });
 
     showToast(t("toast-migration-success"), "success");
     document.getElementById("migration-section").classList.add("hidden");
@@ -948,7 +940,7 @@ function renderUserProfile() {
         </div>
       </div>
       <button id="view-changelog-btn" class="btn-secondary compact">
-        <i data-lucide="history" class="icon"></i> History
+        <i data-lucide="history" class="icon"></i> ${t("btn-history")}
       </button>
     </div>
 
@@ -966,7 +958,7 @@ function renderUserProfile() {
                 (p) => `
               <div class="compact-card preference-card">
                 <div class="card-top">
-                  <span class="category-tag">${escapeHtml(p.category || "General")}</span>
+                  <span class="category-tag">${escapeHtml(p.category || t("label-general"))}</span>
                   <div class="confidence-ring" style="--p:${Math.round((p.confidence || 0) * 100)}">
                     <span>${Math.round((p.confidence || 0) * 100)}%</span>
                   </div>
@@ -979,7 +971,7 @@ function renderUserProfile() {
                     ? `
                 <div class="card-footer">
                   <span class="evidence-toggle" title="${escapeHtml(Array.isArray(p.evidence) ? p.evidence.join("\n") : p.evidence)}">
-                    <i data-lucide="info" class="icon-xs"></i> ${Array.isArray(p.evidence) ? p.evidence.length : 1} evidence
+                    <i data-lucide="info" class="icon-xs"></i> ${Array.isArray(p.evidence) ? p.evidence.length : 1}
                   </span>
                   <span class="preference-updated">${formatDate(p.lastUpdated)}</span>
                 </div>`
@@ -1006,7 +998,7 @@ function renderUserProfile() {
                 (p) => `
               <div class="compact-card pattern-card">
                 <div class="card-top">
-                  <span class="category-tag">${escapeHtml(p.category || "General")}</span>
+                  <span class="category-tag">${escapeHtml(p.category || t("label-general"))}</span>
                 </div>
                 <div class="card-body">
                   <p class="card-text">${escapeHtml(p.description || "")}</p>
@@ -1151,7 +1143,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (state.currentView === "profile") loadUserProfile();
   });
 
-  document.getElementById("lang-toggle").textContent = getLanguage().toUpperCase();
+  const currentLang = getLanguage();
+  document.getElementById("lang-toggle").textContent = currentLang.toUpperCase();
+  applyLanguage();
 
   document.getElementById("tag-filter").addEventListener("change", () => {
     state.selectedTag = document.getElementById("tag-filter").value;

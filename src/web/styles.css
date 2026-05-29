@@ -63,6 +63,12 @@ body {
   height: 20px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .stats-bar {
   display: flex;
   gap: 20px;
@@ -192,6 +198,7 @@ button:disabled {
   padding: 10px;
   border: 1px solid #ff4444;
   background: rgba(255, 68, 68, 0.1);
+  flex-basis: 100%;
 }
 
 .bulk-actions span {
@@ -1625,13 +1632,15 @@ textarea:focus-visible {
   background: #0a0a0a;
   border: 1px solid #00ff00;
   color: #00ff00;
-  padding: 4px 12px;
+  padding: 8px 12px;
   font-family: inherit;
   font-size: 12px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s;
   letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
 }
 .lang-toggle:hover {
   background: #00ff00;

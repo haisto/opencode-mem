@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OpenCode Memory Explorer</title>
+    <title data-i18n="page-title">OpenCode Memory Explorer</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.378.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@17.0.1/lib/marked.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.2/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsonrepair@latest/lib/umd/jsonrepair.min.js"></script>
@@ -17,19 +17,22 @@
       <header class="header">
         <div class="header-top">
           <h1 class="title" data-i18n="title">┌─ OPENCODE MEMORY EXPLORER ─┐</h1>
-          <button id="lang-toggle" class="lang-toggle" title="Switch Language">EN</button>
-          <a
-            href="https://github.com/tickernelz/opencode-mem"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="github-link"
-            title="View on GitHub"
-          >
-            <i data-lucide="github" class="icon"></i>
-          </a>
+          <div class="header-actions">
+            <button id="lang-toggle" class="lang-toggle" data-i18n-title="title-lang-toggle" title="Switch Language">EN</button>
+            <a
+              href="https://github.com/tickernelz/opencode-mem"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="github-link"
+              data-i18n-title="title-github"
+              title="View on GitHub"
+            >
+              <i data-lucide="github" class="icon"></i>
+            </a>
+          </div>
         </div>
         <div class="stats-bar">
-          <span id="stats-total">Total: 0</span>
+          <span id="stats-total" data-i18n="text-total">Total: 0</span>
           <span id="refresh-indicator" class="hidden"
             ><i data-lucide="rotate-cw" class="icon icon-spin"></i
           ></span>
