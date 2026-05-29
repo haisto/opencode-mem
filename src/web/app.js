@@ -981,6 +981,7 @@ function renderUserProfile() {
                   <span class="evidence-toggle" title="${escapeHtml(Array.isArray(p.evidence) ? p.evidence.join("\n") : p.evidence)}">
                     <i data-lucide="info" class="icon-xs"></i> ${Array.isArray(p.evidence) ? p.evidence.length : 1} evidence
                   </span>
+                  <span class="preference-updated">${formatDate(p.lastUpdated)}</span>
                 </div>`
                     : ""
                 }

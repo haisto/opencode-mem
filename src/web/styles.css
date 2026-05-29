@@ -1429,6 +1429,14 @@ textarea:focus-visible {
   border-top: 1px solid #1a1a1a;
   padding-top: 6px;
   margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preference-updated {
+  font-size: 10px;
+  color: #555;
 }
 
 .evidence-toggle {
