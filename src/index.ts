@@ -245,7 +245,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
 
     tool: {
       memory: tool({
-        description: `Manage and query project memory (MATCH USER LANGUAGE: ${getLanguageName(CONFIG.autoCaptureLanguage || "en")}). Use 'search' with technical keywords/tags, 'add' to store knowledge, 'profile' for preferences. Search/list scope: project or all-projects.`,
+        description: `Your persistent brain. Before answering, always search(${getLanguageName(CONFIG.autoCaptureLanguage || "en")}) — you may have relevant knowledge. Save key info, decisions, and user preferences proactively. Search with technical keywords/tags (tags rank highest). Use 'profile' to store user preferences. Scope: project or all-projects.`,
         args: {
           mode: tool.schema.enum(["add", "search", "profile", "list", "forget", "help"]).optional(),
           content: tool.schema.string().optional(),
