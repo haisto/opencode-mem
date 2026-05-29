@@ -1098,7 +1098,7 @@ async function refreshProfile() {
   });
 
   if (result.success) {
-    showToast(result.data.message, "success");
+    showToast(t("profile-refresh-success"), "success");
     await loadUserProfile();
   } else {
     showToast(result.error || t("toast-update-failed"), "error");
