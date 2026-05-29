@@ -1,5 +1,5 @@
 {
-  "name": "opencode-mem",
+  "name": "@haisto/opencode-mem",
   "version": "2.14.3",
   "description": "OpenCode plugin that gives coding agents persistent memory using local vector database",
   "type": "module",
