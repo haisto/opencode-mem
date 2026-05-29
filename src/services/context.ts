@@ -1,5 +1,6 @@
 import { CONFIG } from "../config.js";
 import { getUserProfileContext } from "./user-profile/profile-context.js";
+import { logDebug } from "./logger.js";
 
 interface MemoryResultMinimal {
   similarity: number;
@@ -38,5 +39,14 @@ export function formatContextForPrompt(
     return "";
   }
 
-  return parts.join("\n");
+  const result = parts.join("\n");
+  logDebug("Injected context", {
+    userId: userId ?? undefined,
+    charCount: result.length,
+    lineCount: result.split("\n").length,
+    hasProfile: CONFIG.injectProfile && userId ? true : false,
+    memoryCount: projectMemories.results?.length || 0,
+    preview: result.slice(0, 300) + (result.length > 300 ? "..." : ""),
+  });
+  return result;
 }
