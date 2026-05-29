@@ -350,7 +350,10 @@ export class UserProfileManager {
                   ...this.ensureArray(newPref.evidence),
                 ]),
               ].slice(0, 5),
-              lastUpdated: Date.now(),
+              lastUpdated:
+                (newPref.confidence ?? 0) > (existingItem.confidence ?? 0)
+                  ? Date.now()
+                  : existingItem.lastUpdated,
             };
           }
         } else {

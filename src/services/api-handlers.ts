@@ -925,7 +925,30 @@ export async function handleRefreshProfile(userId?: string): Promise<ApiResponse
     }
     const profile = userProfileManager.getActiveProfile(targetUserId);
     if (profile) {
+      const profileData = JSON.parse(profile.profileData);
+      const beforePrefs: Array<{ confidence?: number }> = profileData.preferences || [];
+      const beforeAvg =
+        beforePrefs.length > 0
+          ? beforePrefs.reduce((s: number, p) => s + (p.confidence || 0), 0) / beforePrefs.length
+          : 0;
+
       userProfileManager.applyConfidenceDecay(profile.id);
+
+      const updatedProfile = userProfileManager.getProfileById(profile.id);
+      const updatedData = updatedProfile ? JSON.parse(updatedProfile.profileData) : null;
+      const afterPrefs: Array<{ confidence?: number }> = updatedData?.preferences || [];
+      const afterAvg =
+        afterPrefs.length > 0
+          ? afterPrefs.reduce((s: number, p) => s + (p.confidence || 0), 0) / afterPrefs.length
+          : 0;
+
+      log("handleRefreshProfile: confidence decay applied", {
+        profileId: profile.id,
+        preferencesBefore: beforePrefs.length,
+        preferencesAfter: afterPrefs.length,
+        avgConfidenceBefore: Number(beforeAvg.toFixed(3)),
+        avgConfidenceAfter: Number(afterAvg.toFixed(3)),
+      });
     }
     performUserProfileLearning(null as any, process.cwd()).catch(() => {});
     return {
