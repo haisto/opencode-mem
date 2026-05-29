@@ -54,6 +54,7 @@ export async function performUserProfileLearning(
         prompts.length,
         changeSummary
       );
+      userProfileManager.applyConfidenceDecay(existingProfile.id);
     } else {
       userProfileManager.createProfile(
         userId,

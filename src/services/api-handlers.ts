@@ -2,7 +2,7 @@ import { embeddingService } from "./embedding.js";
 import { shardManager } from "./sqlite/shard-manager.js";
 import { vectorSearch } from "./sqlite/vector-search.js";
 import { connectionManager } from "./sqlite/connection-manager.js";
-import { log } from "./logger.js";
+import { log, logTrace } from "./logger.js";
 import { CONFIG } from "../config.js";
 import type { MemoryType } from "../types/index.js";
 import { userPromptManager } from "./user-prompt/user-prompt-manager.js";
@@ -916,19 +916,45 @@ export async function handleGetProfileSnapshot(changelogId: string): Promise<Api
 export async function handleRefreshProfile(userId?: string): Promise<ApiResponse<any>> {
   try {
     const { getTags } = await import("./tags.js");
-    const { userPromptManager } = await import("./user-prompt/user-prompt-manager.js");
+    const { userProfileManager } = await import("./user-profile/user-profile-manager.js");
+    const { performUserProfileLearning } = await import("./user-memory-learning.js");
     let targetUserId = userId;
     if (!targetUserId) {
       const tags = getTags(process.cwd());
       targetUserId = tags.user.userEmail || "unknown";
     }
-    const unanalyzedCount = userPromptManager.countUnanalyzedForUserLearning();
+    const profile = userProfileManager.getActiveProfile(targetUserId);
+    if (profile) {
+      const profileData = JSON.parse(profile.profileData);
+      const beforePrefs: Array<{ confidence?: number }> = profileData.preferences || [];
+      const beforeAvg =
+        beforePrefs.length > 0
+          ? beforePrefs.reduce((s: number, p) => s + (p.confidence || 0), 0) / beforePrefs.length
+          : 0;
+
+      userProfileManager.applyConfidenceDecay(profile.id);
+
+      const updatedProfile = userProfileManager.getProfileById(profile.id);
+      const updatedData = updatedProfile ? JSON.parse(updatedProfile.profileData) : null;
+      const afterPrefs: Array<{ confidence?: number }> = updatedData?.preferences || [];
+      const afterAvg =
+        afterPrefs.length > 0
+          ? afterPrefs.reduce((s: number, p) => s + (p.confidence || 0), 0) / afterPrefs.length
+          : 0;
+
+      logTrace("handleRefreshProfile: confidence decay applied", {
+        profileId: profile.id,
+        preferencesBefore: beforePrefs.length,
+        preferencesAfter: afterPrefs.length,
+        avgConfidenceBefore: Number(beforeAvg.toFixed(3)),
+        avgConfidenceAfter: Number(afterAvg.toFixed(3)),
+      });
+    }
+    performUserProfileLearning(null as any, process.cwd()).catch(() => {});
     return {
       success: true,
       data: {
-        message: "Profile refresh queued",
-        unanalyzedPrompts: unanalyzedCount,
-        note: "Profile will be updated when threshold is reached",
+        message: "Profile refresh triggered with confidence decay",
       },
     };
   } catch (error) {

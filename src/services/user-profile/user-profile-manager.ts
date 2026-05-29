@@ -4,6 +4,7 @@ import { connectionManager } from "../sqlite/connection-manager.js";
 import { CONFIG } from "../../config.js";
 import type { UserProfile, UserProfileChangelog, UserProfileData } from "./types.js";
 import { safeArray, safeObject } from "./profile-utils.js";
+import { log, logTrace } from "../logger.js";
 
 const Database = getDatabase();
 type DatabaseType = typeof Database.prototype;
@@ -215,20 +216,62 @@ export class UserProfileManager {
     const profileData: UserProfileData = JSON.parse(profile.profileData);
     const now = Date.now();
     const decayThreshold = CONFIG.userProfileConfidenceDecayDays * 24 * 60 * 60 * 1000;
-
     let hasChanges = false;
+    const decayLogs: Array<{ action: string; [key: string]: unknown }> = [];
 
     profileData.preferences = profileData.preferences
       .map((pref) => {
         const age = now - pref.lastUpdated;
+        const ageHours = Math.round((age / (1000 * 60 * 60)) * 10) / 10;
         if (age > decayThreshold) {
           hasChanges = true;
+          const oldConfidence = pref.confidence;
           const decayFactor = Math.max(0.5, 1 - (age - decayThreshold) / decayThreshold);
-          return { ...pref, confidence: pref.confidence * decayFactor };
+          const newConfidence = pref.confidence * decayFactor;
+          decayLogs.push({
+            category: pref.category,
+            description: pref.description,
+            ageHours,
+            decayThresholdDays: CONFIG.userProfileConfidenceDecayDays,
+            oldConfidence: Math.round(oldConfidence * 100) / 100,
+            newConfidence: Math.round(newConfidence * 100) / 100,
+            decayFactor: Math.round(decayFactor * 100) / 100,
+            action: "decayed",
+          });
+          return { ...pref, confidence: newConfidence };
         }
+        decayLogs.push({
+          category: pref.category,
+          description: pref.description,
+          ageHours,
+          decayThresholdDays: CONFIG.userProfileConfidenceDecayDays,
+          confidence: Math.round(pref.confidence * 100) / 100,
+          action: "skipped (not yet due)",
+        });
         return pref;
       })
-      .filter((pref) => pref.confidence >= 0.3);
+      .filter((pref) => {
+        if (pref.confidence < 0.3) {
+          decayLogs.push({
+            category: pref.category,
+            description: pref.description,
+            confidence: Math.round(pref.confidence * 100) / 100,
+            action: "removed (confidence < 0.3)",
+          });
+          return false;
+        }
+        return true;
+      });
+
+    if (decayLogs.length > 0) {
+      logTrace("applyConfidenceDecay: preferences evaluated", {
+        profileId,
+        total: decayLogs.length,
+        decayed: decayLogs.filter((l) => l.action === "decayed").length,
+        removed: decayLogs.filter((l) => l.action?.includes("removed")).length,
+        details: decayLogs,
+      });
+    }
 
     if (hasChanges) {
       this.updateProfile(profileId, profileData, 0, "Applied confidence decay to preferences");
@@ -300,14 +343,17 @@ export class UserProfileManager {
           if (existingItem) {
             merged.preferences[existingIndex] = {
               ...newPref,
-              confidence: Math.min(1, (existingItem.confidence || 0) + 0.1),
+              confidence: Math.max(newPref.confidence ?? 0, existingItem.confidence ?? 0),
               evidence: [
                 ...new Set([
                   ...this.ensureArray(existingItem.evidence),
                   ...this.ensureArray(newPref.evidence),
                 ]),
               ].slice(0, 5),
-              lastUpdated: Date.now(),
+              lastUpdated:
+                (newPref.confidence ?? 0) > (existingItem.confidence ?? 0)
+                  ? Date.now()
+                  : existingItem.lastUpdated,
             };
           }
         } else {
