@@ -1550,7 +1550,9 @@ textarea:focus-visible {
   align-items: center;
 }
 
-.preference-updated {
+.preference-updated,
+.pattern-lastSeen,
+.workflow-lastSeen {
   font-size: 10px;
   color: var(--om-text-muted);
 }
@@ -1592,6 +1594,7 @@ textarea:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  margin-bottom: 6px;
 }
 
 .step-node {

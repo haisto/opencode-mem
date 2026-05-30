@@ -1003,6 +1003,12 @@ function renderUserProfile() {
                 <div class="card-body">
                   <p class="card-text">${escapeHtml(p.description || "")}</p>
                 </div>
+                <div class="card-footer">
+                  <span class="evidence-toggle">
+                    <i data-lucide="activity" class="icon-xs"></i> ${p.frequency || 1}
+                  </span>
+                  <span class="pattern-lastSeen">${formatDate(p.lastSeen)}</span>
+                </div>
               </div>
             `
               )
@@ -1036,6 +1042,12 @@ function renderUserProfile() {
                   `
                     )
                     .join("")}
+                </div>
+                <div class="card-footer">
+                  <span class="evidence-toggle">
+                    <i data-lucide="repeat" class="icon-xs"></i> ${w.frequency || 1}
+                  </span>
+                  <span class="workflow-lastSeen">${formatDate(w.lastSeen)}</span>
                 </div>
               </div>
             `
