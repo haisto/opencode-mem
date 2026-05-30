@@ -238,7 +238,7 @@ export class UserProfileManager {
             decayFactor: Math.round(decayFactor * 100) / 100,
             action: "decayed",
           });
-          return { ...pref, confidence: newConfidence };
+          return { ...pref, confidence: newConfidence, lastUpdated: now };
         }
         decayLogs.push({
           category: pref.category,
@@ -280,7 +280,7 @@ export class UserProfileManager {
         if (age > decayThreshold) {
           hasChanges = true;
           const decayFactor = Math.max(0.5, 1 - (age - decayThreshold) / decayThreshold);
-          return { ...pattern, frequency: Math.floor(pattern.frequency * decayFactor) };
+          return { ...pattern, frequency: Math.floor(pattern.frequency * decayFactor), lastSeen: now };
         }
         return pattern;
       })
@@ -293,7 +293,7 @@ export class UserProfileManager {
         if (age > decayThreshold) {
           hasChanges = true;
           const decayFactor = Math.max(0.5, 1 - (age - decayThreshold) / decayThreshold);
-          return { ...workflow, frequency: Math.floor(workflow.frequency * decayFactor) };
+          return { ...workflow, frequency: Math.floor(workflow.frequency * decayFactor), lastSeen: now };
         }
         return workflow;
       })
