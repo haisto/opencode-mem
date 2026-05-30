@@ -17,6 +17,7 @@ export interface UserProfileWorkflow {
   description: string;
   steps: string[];
   frequency: number;
+  lastSeen: number;
 }
 
 export interface UserProfileData {

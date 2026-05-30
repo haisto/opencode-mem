@@ -273,6 +273,32 @@ export class UserProfileManager {
       });
     }
 
+    // Decay patterns by lastSeen + frequency (integer counter)
+    profileData.patterns = profileData.patterns
+      .map((pattern) => {
+        const age = now - pattern.lastSeen;
+        if (age > decayThreshold) {
+          hasChanges = true;
+          const decayFactor = Math.max(0.5, 1 - (age - decayThreshold) / decayThreshold);
+          return { ...pattern, frequency: Math.floor(pattern.frequency * decayFactor) };
+        }
+        return pattern;
+      })
+      .filter((pattern) => pattern.frequency >= 1);
+
+    // Decay workflows by lastSeen + frequency (integer counter)
+    profileData.workflows = profileData.workflows
+      .map((workflow) => {
+        const age = now - workflow.lastSeen;
+        if (age > decayThreshold) {
+          hasChanges = true;
+          const decayFactor = Math.max(0.5, 1 - (age - decayThreshold) / decayThreshold);
+          return { ...workflow, frequency: Math.floor(workflow.frequency * decayFactor) };
+        }
+        return workflow;
+      })
+      .filter((workflow) => workflow.frequency >= 1);
+
     if (hasChanges) {
       this.updateProfile(profileId, profileData, 0, "Applied confidence decay to preferences");
     }
@@ -375,10 +401,14 @@ export class UserProfileManager {
         if (existingIndex >= 0) {
           const existingItem = merged.patterns[existingIndex];
           if (existingItem) {
+            const newFreq = (existingItem.frequency || 1) + 1;
             merged.patterns[existingIndex] = {
               ...newPattern,
-              frequency: (existingItem.frequency || 1) + 1,
-              lastSeen: Date.now(),
+              frequency: newFreq,
+              lastSeen:
+                newFreq > (existingItem.frequency || 1) * 1.5
+                  ? Date.now()
+                  : existingItem.lastSeen,
             };
           }
         } else {
@@ -400,13 +430,18 @@ export class UserProfileManager {
         if (existingIndex >= 0) {
           const existingItem = merged.workflows[existingIndex];
           if (existingItem) {
+            const newFreq = (existingItem.frequency || 1) + 1;
             merged.workflows[existingIndex] = {
               ...newWorkflow,
-              frequency: (existingItem.frequency || 1) + 1,
+              frequency: newFreq,
+              lastSeen:
+                newFreq > (existingItem.frequency || 1) * 1.5
+                  ? Date.now()
+                  : existingItem.lastSeen,
             };
           }
         } else {
-          merged.workflows.push({ ...newWorkflow, frequency: 1 });
+          merged.workflows.push({ ...newWorkflow, frequency: 1, lastSeen: Date.now() });
         }
       }
 
