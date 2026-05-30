@@ -12,6 +12,9 @@ const state = {
   searchQuery: "",
   isSearching: false,
   selectedMemories: new Set(),
+  selectedPreferences: new Set(),
+  selectedPatterns: new Set(),
+  selectedWorkflows: new Set(),
   autoRefreshInterval: null,
   userProfile: null,
 };
@@ -951,12 +954,27 @@ function renderUserProfile() {
           preferences.length === 0
             ? `<p class="empty-text">${t("empty-preferences")}</p>`
             : `
+          ${
+            state.selectedPreferences.size > 0
+              ? `
+          <div class="pref-delete-bar">
+            <span class="pref-count">${t("text-selected", { count: state.selectedPreferences.size })}</span>
+            <span class="pref-bar-actions">
+              <button class="pref-bar-btn" data-action="select-all-prefs"><i data-lucide="check-square" class="icon-sm"></i> ${t("btn-select-all")}</button>
+              <button class="pref-bar-btn" data-action="deselect-all-prefs"><i data-lucide="square" class="icon-sm"></i> ${t("btn-deselect-all")}</button>
+              <button class="pref-bar-btn" data-action="delete-prefs">
+                <i data-lucide="trash-2" class="icon-sm"></i> ${t("pref-delete-selected")}
+              </button>
+            </span>
+          </div>`
+              : ""
+          }
           <div class="cards-grid">
             ${preferences
               .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
               .map(
-                (p) => `
-              <div class="compact-card preference-card">
+                (p, index) => `
+              <div class="compact-card preference-card ${state.selectedPreferences.has(index) ? "preference-selected" : ""}" data-index="${index}">
                 <div class="card-top">
                   <span class="category-tag">${escapeHtml(p.category || t("label-general"))}</span>
                   <div class="confidence-ring" style="--p:${Math.round((p.confidence || 0) * 100)}">
@@ -992,11 +1010,26 @@ function renderUserProfile() {
           patterns.length === 0
             ? `<p class="empty-text">${t("empty-patterns")}</p>`
             : `
+          ${
+            state.selectedPatterns.size > 0
+              ? `
+          <div class="pref-delete-bar">
+            <span class="pref-count">${t("text-selected", { count: state.selectedPatterns.size })}</span>
+            <span class="pref-bar-actions">
+              <button class="pref-bar-btn" data-action="select-all-patterns"><i data-lucide="check-square" class="icon-sm"></i> ${t("btn-select-all")}</button>
+              <button class="pref-bar-btn" data-action="deselect-all-patterns"><i data-lucide="square" class="icon-sm"></i> ${t("btn-deselect-all")}</button>
+              <button class="pref-bar-btn" data-action="delete-patterns">
+                <i data-lucide="trash-2" class="icon-sm"></i> ${t("pattern-delete-selected")}
+              </button>
+            </span>
+          </div>`
+              : ""
+          }
           <div class="cards-grid">
             ${patterns
               .map(
-                (p) => `
-              <div class="compact-card pattern-card">
+                (p, index) => `
+              <div class="compact-card pattern-card ${state.selectedPatterns.has(index) ? "pattern-selected" : ""}" data-index="${index}">
                 <div class="card-top">
                   <span class="category-tag">${escapeHtml(p.category || t("label-general"))}</span>
                 </div>
@@ -1024,11 +1057,26 @@ function renderUserProfile() {
           workflows.length === 0
             ? `<p class="empty-text">${t("empty-workflows")}</p>`
             : `
+          ${
+            state.selectedWorkflows.size > 0
+              ? `
+          <div class="pref-delete-bar">
+            <span class="pref-count">${t("text-selected", { count: state.selectedWorkflows.size })}</span>
+            <span class="pref-bar-actions">
+              <button class="pref-bar-btn" data-action="select-all-workflows"><i data-lucide="check-square" class="icon-sm"></i> ${t("btn-select-all")}</button>
+              <button class="pref-bar-btn" data-action="deselect-all-workflows"><i data-lucide="square" class="icon-sm"></i> ${t("btn-deselect-all")}</button>
+              <button class="pref-bar-btn" data-action="delete-workflows">
+                <i data-lucide="trash-2" class="icon-sm"></i> ${t("workflow-delete-selected")}
+              </button>
+            </span>
+          </div>`
+              : ""
+          }
           <div class="workflows-grid">
             ${workflows
               .map(
-                (w) => `
-              <div class="workflow-row">
+                (w, index) => `
+              <div class="workflow-row ${state.selectedWorkflows.has(index) ? "workflow-selected" : ""}" data-index="${index}">
                 <div class="workflow-title">${escapeHtml(w.description || "")}</div>
                 <div class="workflow-steps-horizontal">
                   ${(w.steps || [])
@@ -1110,6 +1158,110 @@ async function refreshProfile() {
   }
 }
 
+function selectAllPreferences() {
+  document.querySelectorAll(".preference-card[data-index]").forEach((card) => {
+    state.selectedPreferences.add(parseInt(card.dataset.index));
+  });
+  renderUserProfile();
+}
+
+function deselectAllPreferences() {
+  state.selectedPreferences.clear();
+  renderUserProfile();
+}
+
+async function confirmDeletePreferences() {
+  if (state.selectedPreferences.size === 0) return;
+  if (!confirm(t("confirm-delete-prefs", { count: state.selectedPreferences.size }))) return;
+
+  const result = await fetchAPI("/api/user-profile/preferences/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      profileId: state.userProfile.id,
+      indexes: Array.from(state.selectedPreferences),
+    }),
+  });
+
+  if (result.success) {
+    state.selectedPreferences.clear();
+    showToast(t("toast-delete-prefs-success"), "success");
+    await loadUserProfile();
+  } else {
+    showToast(result.error || t("toast-update-failed"), "error");
+  }
+}
+
+// --- Pattern selection & delete ---
+function selectAllPatterns() {
+  document.querySelectorAll(".pattern-card[data-index]").forEach((card) => {
+    state.selectedPatterns.add(parseInt(card.dataset.index));
+  });
+  renderUserProfile();
+}
+
+function deselectAllPatterns() {
+  state.selectedPatterns.clear();
+  renderUserProfile();
+}
+
+async function confirmDeletePatterns() {
+  if (state.selectedPatterns.size === 0) return;
+  if (!confirm(t("confirm-delete-patterns", { count: state.selectedPatterns.size }))) return;
+
+  const result = await fetchAPI("/api/user-profile/patterns/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      profileId: state.userProfile.id,
+      indexes: Array.from(state.selectedPatterns),
+    }),
+  });
+
+  if (result.success) {
+    state.selectedPatterns.clear();
+    showToast(t("toast-delete-patterns-success"), "success");
+    await loadUserProfile();
+  } else {
+    showToast(result.error || t("toast-update-failed"), "error");
+  }
+}
+
+// --- Workflow selection & delete ---
+function selectAllWorkflows() {
+  document.querySelectorAll(".workflow-row[data-index]").forEach((card) => {
+    state.selectedWorkflows.add(parseInt(card.dataset.index));
+  });
+  renderUserProfile();
+}
+
+function deselectAllWorkflows() {
+  state.selectedWorkflows.clear();
+  renderUserProfile();
+}
+
+async function confirmDeleteWorkflows() {
+  if (state.selectedWorkflows.size === 0) return;
+  if (!confirm(t("confirm-delete-workflows", { count: state.selectedWorkflows.size }))) return;
+
+  const result = await fetchAPI("/api/user-profile/workflows/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      profileId: state.userProfile.id,
+      indexes: Array.from(state.selectedWorkflows),
+    }),
+  });
+
+  if (result.success) {
+    state.selectedWorkflows.clear();
+    showToast(t("toast-delete-workflows-success"), "success");
+    await loadUserProfile();
+  } else {
+    showToast(result.error || t("toast-update-failed"), "error");
+  }
+}
+
 function switchView(view) {
   state.currentView = view;
 
@@ -1176,6 +1328,59 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("refresh-profile-btn")?.addEventListener("click", refreshProfile);
   document.getElementById("changelog-close")?.addEventListener("click", () => {
     document.getElementById("changelog-modal").classList.add("hidden");
+  });
+
+  // Event delegation for profile selection & delete (survives innerHTML replacement)
+  document.getElementById("profile-content")?.addEventListener("click", (e) => {
+    const prefCard = e.target.closest(".preference-card");
+    if (prefCard && prefCard.dataset.index !== undefined) {
+      const idx = parseInt(prefCard.dataset.index);
+      if (state.selectedPreferences.has(idx)) {
+        state.selectedPreferences.delete(idx);
+      } else {
+        state.selectedPreferences.add(idx);
+      }
+      renderUserProfile();
+      return;
+    }
+
+    const patternCard = e.target.closest(".pattern-card");
+    if (patternCard && patternCard.dataset.index !== undefined) {
+      const idx = parseInt(patternCard.dataset.index);
+      if (state.selectedPatterns.has(idx)) {
+        state.selectedPatterns.delete(idx);
+      } else {
+        state.selectedPatterns.add(idx);
+      }
+      renderUserProfile();
+      return;
+    }
+
+    const workflowRow = e.target.closest(".workflow-row");
+    if (workflowRow && workflowRow.dataset.index !== undefined) {
+      const idx = parseInt(workflowRow.dataset.index);
+      if (state.selectedWorkflows.has(idx)) {
+        state.selectedWorkflows.delete(idx);
+      } else {
+        state.selectedWorkflows.add(idx);
+      }
+      renderUserProfile();
+      return;
+    }
+
+    const actionBtn = e.target.closest("[data-action]");
+    if (actionBtn) {
+      const action = actionBtn.dataset.action;
+      if (action === "select-all-prefs") selectAllPreferences();
+      else if (action === "deselect-all-prefs") deselectAllPreferences();
+      else if (action === "delete-prefs") confirmDeletePreferences();
+      else if (action === "select-all-patterns") selectAllPatterns();
+      else if (action === "deselect-all-patterns") deselectAllPatterns();
+      else if (action === "delete-patterns") confirmDeletePatterns();
+      else if (action === "select-all-workflows") selectAllWorkflows();
+      else if (action === "deselect-all-workflows") deselectAllWorkflows();
+      else if (action === "delete-workflows") confirmDeleteWorkflows();
+    }
   });
 
   document.getElementById("lang-toggle").addEventListener("click", () => {

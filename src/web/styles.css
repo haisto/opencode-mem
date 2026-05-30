@@ -1787,3 +1787,125 @@ textarea:focus-visible {
   height: 20px;
   margin: 0;
 }
+
+/* --- Preference selection & delete bar --- */
+.preference-card {
+  cursor: pointer;
+  user-select: none;
+}
+
+.preference-card.preference-selected {
+  border-color: var(--om-accent-blue);
+  border-width: 2px;
+  background: var(--om-blue-tint);
+  box-shadow: 0 0 0 1px var(--om-blue-border-tint);
+}
+
+.pref-delete-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--om-danger-bg);
+  border: 1px solid var(--om-accent-red);
+  border-left: 3px solid var(--om-accent-red);
+  font-size: 12px;
+}
+
+.pref-delete-bar .pref-count {
+  color: var(--om-accent-red);
+  font-weight: bold;
+}
+
+.pref-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pref-bar-btn {
+  background: none;
+  border: 1px solid var(--om-accent-red);
+  color: var(--om-accent-red);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.pref-bar-btn:hover {
+  background: var(--om-accent-red);
+  color: var(--om-text-inverse);
+}
+
+.pref-delete-bar .btn-danger {
+  background: var(--om-accent-red);
+  color: var(--om-text-inverse);
+  border: none;
+  padding: 6px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.pref-delete-bar .btn-danger:hover {
+  background: var(--om-danger-bg);
+  color: var(--om-accent-red);
+  outline: 1px solid var(--om-accent-red);
+}
+
+.pref-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pref-bar-btn {
+  background: none;
+  border: 1px solid var(--om-accent-red);
+  color: var(--om-accent-red);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.pref-bar-btn:hover {
+  background: var(--om-accent-red);
+  color: var(--om-text-inverse);
+}
+
+/* --- Pattern selection & delete bar --- */
+.pattern-card {
+  cursor: pointer;
+  user-select: none;
+}
+
+.pattern-card.pattern-selected {
+  border-color: var(--om-accent-blue);
+  border-width: 2px;
+  background: var(--om-blue-tint);
+  box-shadow: 0 0 0 1px var(--om-blue-border-tint);
+}
+
+/* --- Workflow selection & delete bar --- */
+.workflow-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.workflow-row.workflow-selected {
+  border-color: var(--om-accent-blue);
+  border-width: 2px;
+  background: var(--om-blue-tint);
+  box-shadow: 0 0 0 1px var(--om-blue-border-tint);
+}

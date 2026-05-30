@@ -963,6 +963,54 @@ export async function handleRefreshProfile(userId?: string): Promise<ApiResponse
   }
 }
 
+export async function handleDeleteProfilePreferences(body: any): Promise<ApiResponse<any>> {
+  try {
+    const { profileId, indexes } = body;
+    if (!profileId) return { success: false, error: "profileId is required" };
+    if (!Array.isArray(indexes) || indexes.length === 0) {
+      return { success: false, error: "indexes must be a non-empty array" };
+    }
+    const { userProfileManager } = await import("./user-profile/user-profile-manager.js");
+    userProfileManager.deletePreferences(profileId, indexes);
+    return { success: true, data: { message: `Deleted ${indexes.length} preference(s)` } };
+  } catch (error) {
+    log("handleDeleteProfilePreferences: error", { error: String(error) });
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function handleDeleteProfilePatterns(body: any): Promise<ApiResponse<any>> {
+  try {
+    const { profileId, indexes } = body;
+    if (!profileId) return { success: false, error: "profileId is required" };
+    if (!Array.isArray(indexes) || indexes.length === 0) {
+      return { success: false, error: "indexes must be a non-empty array" };
+    }
+    const { userProfileManager } = await import("./user-profile/user-profile-manager.js");
+    userProfileManager.deletePatterns(profileId, indexes);
+    return { success: true, data: { message: `Deleted ${indexes.length} pattern(s)` } };
+  } catch (error) {
+    log("handleDeleteProfilePatterns: error", { error: String(error) });
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function handleDeleteProfileWorkflows(body: any): Promise<ApiResponse<any>> {
+  try {
+    const { profileId, indexes } = body;
+    if (!profileId) return { success: false, error: "profileId is required" };
+    if (!Array.isArray(indexes) || indexes.length === 0) {
+      return { success: false, error: "indexes must be a non-empty array" };
+    }
+    const { userProfileManager } = await import("./user-profile/user-profile-manager.js");
+    userProfileManager.deleteWorkflows(profileId, indexes);
+    return { success: true, data: { message: `Deleted ${indexes.length} workflow(s)` } };
+  } catch (error) {
+    log("handleDeleteProfileWorkflows: error", { error: String(error) });
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function handleDetectTagMigration(): Promise<
   ApiResponse<{ needsMigration: boolean; count: number }>
 > {

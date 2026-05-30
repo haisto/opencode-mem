@@ -159,6 +159,58 @@ export class UserProfileManager {
     this.cleanupOldChangelogs(profileId);
   }
 
+  /**
+   * Delete specific preferences by their array indices.
+   * Indices are sorted descending so splice doesn't shift unspliced indexes.
+   */
+  deletePreferences(profileId: string, indexes: number[]): void {
+    const profile = this.getProfileById(profileId);
+    if (!profile) throw new Error(`Profile not found: ${profileId}`);
+
+    const data: UserProfileData = JSON.parse(profile.profileData);
+    const sorted = [...indexes].sort((a, b) => b - a);
+
+    for (const idx of sorted) {
+      if (idx >= 0 && idx < data.preferences.length) {
+        data.preferences.splice(idx, 1);
+      }
+    }
+
+    this.updateProfile(profileId, data, 0, `Deleted ${indexes.length} preference(s)`);
+  }
+
+  deletePatterns(profileId: string, indexes: number[]): void {
+    const profile = this.getProfileById(profileId);
+    if (!profile) throw new Error(`Profile not found: ${profileId}`);
+
+    const data: UserProfileData = JSON.parse(profile.profileData);
+    const sorted = [...indexes].sort((a, b) => b - a);
+
+    for (const idx of sorted) {
+      if (idx >= 0 && idx < data.patterns.length) {
+        data.patterns.splice(idx, 1);
+      }
+    }
+
+    this.updateProfile(profileId, data, 0, `Deleted ${indexes.length} pattern(s)`);
+  }
+
+  deleteWorkflows(profileId: string, indexes: number[]): void {
+    const profile = this.getProfileById(profileId);
+    if (!profile) throw new Error(`Profile not found: ${profileId}`);
+
+    const data: UserProfileData = JSON.parse(profile.profileData);
+    const sorted = [...indexes].sort((a, b) => b - a);
+
+    for (const idx of sorted) {
+      if (idx >= 0 && idx < data.workflows.length) {
+        data.workflows.splice(idx, 1);
+      }
+    }
+
+    this.updateProfile(profileId, data, 0, `Deleted ${indexes.length} workflow(s)`);
+  }
+
   private addChangelog(
     profileId: string,
     version: number,

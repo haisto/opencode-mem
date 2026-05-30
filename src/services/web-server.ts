@@ -26,6 +26,9 @@ import {
   handleGetProfileChangelog,
   handleGetProfileSnapshot,
   handleRefreshProfile,
+  handleDeleteProfilePreferences,
+  handleDeleteProfilePatterns,
+  handleDeleteProfileWorkflows,
 } from "./api-handlers.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -385,6 +388,24 @@ export class WebServer {
         const body = (await req.json().catch(() => ({}))) as any;
         const userId = body.userId || undefined;
         const result = await handleRefreshProfile(userId);
+        return this.jsonResponse(result);
+      }
+
+      if (path === "/api/user-profile/preferences/delete" && method === "POST") {
+        const body = (await req.json()) as any;
+        const result = await handleDeleteProfilePreferences(body);
+        return this.jsonResponse(result);
+      }
+
+      if (path === "/api/user-profile/patterns/delete" && method === "POST") {
+        const body = (await req.json()) as any;
+        const result = await handleDeleteProfilePatterns(body);
+        return this.jsonResponse(result);
+      }
+
+      if (path === "/api/user-profile/workflows/delete" && method === "POST") {
+        const body = (await req.json()) as any;
+        const result = await handleDeleteProfileWorkflows(body);
         return this.jsonResponse(result);
       }
 
