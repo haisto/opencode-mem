@@ -175,6 +175,12 @@ export class OpenAIResponsesProvider extends BaseAIProvider {
         if (item.arguments) {
           try {
             const parsed = JSON.parse(item.arguments);
+            // Recover when the model double-encodes arrays as JSON strings
+            for (const key of ["preferences", "patterns", "workflows"]) {
+              if (typeof parsed[key] === "string") {
+                try { parsed[key] = JSON.parse(parsed[key]); } catch { /* keep as-is */ }
+              }
+            }
             return parsed;
           } catch (error) {
             log("Failed to parse function call arguments", {

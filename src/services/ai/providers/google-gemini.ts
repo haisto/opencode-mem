@@ -234,6 +234,12 @@ export class GoogleGeminiProvider extends BaseAIProvider {
             if (toolCall.function.name === toolSchema.function.name) {
               try {
                 const parsed = JSON.parse(toolCall.function.arguments);
+                // Recover when the model double-encodes arrays as JSON strings
+                for (const key of ["preferences", "patterns", "workflows"]) {
+                  if (typeof parsed[key] === "string") {
+                    try { parsed[key] = JSON.parse(parsed[key]); } catch { /* keep as-is */ }
+                  }
+                }
                 const result = UserProfileValidator.validate(parsed);
                 if (!result.valid) throw new Error(result.errors.join(", "));
 
@@ -252,14 +258,14 @@ export class GoogleGeminiProvider extends BaseAIProvider {
                   toolCall.id,
                   JSON.stringify({ success: false, error: errorMessage })
                 );
-                return { success: false, error: errorMessage, iterations };
+                break;
               }
             }
           }
         }
 
         // Retry if no tool call was made
-        const retryPrompt = "Please use the save_memories tool as instructed.";
+        const retryPrompt = `Please use the ${toolSchema.function.name} tool as instructed.`;
         const retrySequence = this.aiSessionManager.getLastSequence(session.id) + 1;
         this.aiSessionManager.addMessage({
           aiSessionId: session.id,
