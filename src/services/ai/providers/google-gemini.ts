@@ -258,14 +258,14 @@ export class GoogleGeminiProvider extends BaseAIProvider {
                   toolCall.id,
                   JSON.stringify({ success: false, error: errorMessage })
                 );
-                break;
+                return { success: false, error: errorMessage, iterations };
               }
             }
           }
         }
 
         // Retry if no tool call was made
-        const retryPrompt = `Please use the ${toolSchema.function.name} tool as instructed.`;
+        const retryPrompt = "Please use the save_memories tool as instructed.";
         const retrySequence = this.aiSessionManager.getLastSequence(session.id) + 1;
         this.aiSessionManager.addMessage({
           aiSessionId: session.id,

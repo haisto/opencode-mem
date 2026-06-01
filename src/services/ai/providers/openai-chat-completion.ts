@@ -394,7 +394,11 @@ export class OpenAIChatCompletionProvider extends BaseAIProvider {
                   JSON.stringify({ success: false, error: errorMessage })
                 );
 
-                break;
+                return {
+                  success: false,
+                  error: errorMessage,
+                  iterations,
+                };
               }
             }
 
@@ -411,7 +415,8 @@ export class OpenAIChatCompletionProvider extends BaseAIProvider {
         }
 
         const retrySequence = this.aiSessionManager.getLastSequence(session.id) + 1;
-        const retryPrompt = `Please use the ${toolSchema.function.name} tool as instructed.`;
+        const retryPrompt =
+          "Please use the save_memories tool to extract and save the memories from the conversation as instructed.";
 
         this.aiSessionManager.addMessage({
           aiSessionId: session.id,
