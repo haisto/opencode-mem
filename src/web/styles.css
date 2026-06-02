@@ -1539,6 +1539,7 @@ textarea:focus-visible {
   font-size: 12px;
   color: var(--om-text-card);
   line-height: 1.4;
+  word-break: break-all;
 }
 
 .card-footer {
