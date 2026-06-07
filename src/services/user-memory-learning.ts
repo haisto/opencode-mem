@@ -126,6 +126,8 @@ ${prompts.map((p, i) => `${i + 1}. ${p.content}`).join("\n\n")}
 
 ## Analysis Guidelines
 
+This profile is **cross-project** — it should capture the user's personal style, not project-specific details.
+
 Identify and ${existingProfile ? "update" : "create"}:
 
 1. **Preferences** (max ${CONFIG.userProfileMaxPreferences})
@@ -168,6 +170,8 @@ async function analyzeUserProfile(
     const systemPrompt = `You are a user behavior analyst for a coding assistant.
 
 Your task is to analyze user prompts and ${existingProfile ? "update" : "create"} a comprehensive user profile.
+
+The profile is **cross-project** — capture the user's personal style and preferences, not project-specific details.
 
 CRITICAL: Detect the language used by the user in their prompts. You MUST output all descriptions, categories, and text in the SAME language as the user's prompts.
 
@@ -235,6 +239,8 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
   const systemPrompt = `You are a user behavior analyst for a coding assistant.
 
 Your task is to analyze user prompts and ${existingProfile ? "update" : "create"} a comprehensive user profile.
+
+The profile is **cross-project** — capture the user's personal style and preferences, not project-specific details.
 
 CRITICAL: Detect the language used by the user in their prompts. You MUST output all descriptions, categories, and text in the SAME language as the user's prompts.
 
