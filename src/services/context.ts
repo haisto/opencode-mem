@@ -14,12 +14,13 @@ interface MemoriesResponseMinimal {
 
 export function formatContextForPrompt(
   userId: string | null,
-  projectMemories: MemoriesResponseMinimal
+  projectMemories: MemoriesResponseMinimal,
+  userMessage?: string
 ): string {
   const parts: string[] = ["[MEMORY]"];
 
   if (CONFIG.injectProfile && userId) {
-    const profileContext = getUserProfileContext(userId);
+    const profileContext = getUserProfileContext(userId, userMessage);
     if (profileContext) {
       parts.push("\n" + profileContext);
     }

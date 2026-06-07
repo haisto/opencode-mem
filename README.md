@@ -99,6 +99,9 @@ Configure at `~/.config/opencode/opencode-mem.jsonc`:
     "excludeCurrentSession": true,
     "maxAgeDays": undefined,
     "injectOn": "first",
+    "injectMaxPreferences": 5,
+    "injectMaxPatterns": 5,
+    "injectMaxWorkflows": 3,
   },
 }
 ```

@@ -76,6 +76,9 @@ interface OpenCodeMemConfig {
     excludeCurrentSession?: boolean;
     maxAgeDays?: number;
     injectOn?: "first" | "always";
+    injectMaxPreferences?: number;
+    injectMaxPatterns?: number;
+    injectMaxWorkflows?: number;
   };
 }
 
@@ -158,6 +161,9 @@ const DEFAULTS: Required<
     excludeCurrentSession: true,
     maxAgeDays: undefined,
     injectOn: "first",
+    injectMaxPreferences: 5,
+    injectMaxPatterns: 5,
+    injectMaxWorkflows: 3,
   },
 };
 
@@ -421,6 +427,22 @@ const CONFIG_TEMPLATE = `{
   "maxMemories": 10,
 
   // ============================================
+  // Chat Message Injection
+  // ============================================
+
+  // Inject relevant memories into AI chat context
+  "chatMessage": {
+    "enabled": true,
+    "maxMemories": 3,
+    "excludeCurrentSession": true,
+    "maxAgeDays": undefined,
+    "injectOn": "first",
+    "injectMaxPreferences": 5,
+    "injectMaxPatterns": 5,
+    "injectMaxWorkflows": 3
+  },
+
+  // ============================================
   // Advanced Settings
   // ============================================
   
@@ -564,6 +586,12 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
       injectOn: (fileConfig.chatMessage?.injectOn ?? DEFAULTS.chatMessage.injectOn) as
         | "first"
         | "always",
+      injectMaxPreferences:
+        fileConfig.chatMessage?.injectMaxPreferences ?? DEFAULTS.chatMessage.injectMaxPreferences,
+      injectMaxPatterns:
+        fileConfig.chatMessage?.injectMaxPatterns ?? DEFAULTS.chatMessage.injectMaxPatterns,
+      injectMaxWorkflows:
+        fileConfig.chatMessage?.injectMaxWorkflows ?? DEFAULTS.chatMessage.injectMaxWorkflows,
     },
   };
 }

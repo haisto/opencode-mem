@@ -12,7 +12,7 @@ import { userPromptManager } from "./services/user-prompt/user-prompt-manager.js
 import { startWebServer, WebServer } from "./services/web-server.js";
 
 import { isConfigured, CONFIG, initConfig } from "./config.js";
-import { log } from "./services/logger.js";
+import { log, logTrace } from "./services/logger.js";
 import type { MemoryType } from "./types/index.js";
 import { getLanguageName } from "./services/language-detector.js";
 import type { MemoryScope } from "./services/client.js";
@@ -201,7 +201,15 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
           memories = memories.filter((m: any) => new Date(m.createdAt).getTime() > cutoffDate);
         }
 
-        if (memories.length === 0) return;
+        if (memories.length === 0) {
+          logTrace("inject: no memories found, skipping injection");
+          return;
+        }
+
+        logTrace("inject: memories loaded", {
+          count: memories.length,
+          summaries: memories.map((m: any) => m.summary?.slice(0, 120)),
+        });
 
         const projectMemories = {
           results: memories.map((m: any) => ({
@@ -213,9 +221,10 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
         };
 
         const userId = tags.user.userEmail || null;
-        const memoryContext = formatContextForPrompt(userId, projectMemories);
+        const memoryContext = formatContextForPrompt(userId, projectMemories, userMessage);
 
         if (memoryContext) {
+          logTrace("inject: memoryContext", { context: memoryContext });
           const contextPart: Part = {
             id: `prt-memory-context-${Date.now()}`,
             sessionID: input.sessionID,

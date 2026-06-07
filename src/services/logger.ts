@@ -91,7 +91,7 @@ function writeLog(level: LogLevel, message: string, data?: unknown) {
   const timestamp = localTimestamp();
   const levelTag = level.toUpperCase().padEnd(5);
   const line = data
-    ? `[${timestamp}] [${levelTag}] ${message}: ${JSON.stringify(data)}\n`
+    ? `[${timestamp}] [${levelTag}] ${message}: ${JSON.stringify(data, null, 2)}\n`
     : `[${timestamp}] [${levelTag}] ${message}\n`;
   appendFileSync(logFile, line);
 }
