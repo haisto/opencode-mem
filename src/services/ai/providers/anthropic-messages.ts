@@ -1,7 +1,7 @@
 import { BaseAIProvider, type ToolCallResult } from "./base-provider.js";
 import { AISessionManager } from "../session/ai-session-manager.js";
 import { ToolSchemaConverter, type ChatCompletionTool } from "../tools/tool-schema.js";
-import { log, logTrace } from "../../logger.js";
+import { log, logDebug } from "../../logger.js";
 import { UserProfileValidator } from "../validators/user-profile-validator.js";
 
 interface AnthropicMessage {
@@ -114,7 +114,7 @@ export class AnthropicMessagesProvider extends BaseAIProvider {
           headers["x-api-key"] = this.config.apiKey;
         }
 
-        logTrace("Anthropic request", {
+        logDebug("Anthropic request", {
           provider: this.getProviderName(),
           model: this.config.model,
           system: systemPrompt,

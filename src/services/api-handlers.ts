@@ -2,7 +2,7 @@ import { embeddingService } from "./embedding.js";
 import { shardManager } from "./sqlite/shard-manager.js";
 import { vectorSearch } from "./sqlite/vector-search.js";
 import { connectionManager } from "./sqlite/connection-manager.js";
-import { log, logTrace } from "./logger.js";
+import { log, logDebug } from "./logger.js";
 import { CONFIG } from "../config.js";
 import type { MemoryType } from "../types/index.js";
 import { userPromptManager } from "./user-prompt/user-prompt-manager.js";
@@ -1029,7 +1029,7 @@ export async function handleRefreshProfile(userId?: string): Promise<ApiResponse
           ? afterPrefs.reduce((s: number, p) => s + (p.confidence || 0), 0) / afterPrefs.length
           : 0;
 
-      logTrace("handleRefreshProfile: confidence decay applied", {
+      logDebug("handleRefreshProfile: confidence decay applied", {
         profileId: profile.id,
         preferencesBefore: beforePrefs.length,
         preferencesAfter: afterPrefs.length,

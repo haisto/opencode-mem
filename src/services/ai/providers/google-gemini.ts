@@ -1,7 +1,7 @@
 import { BaseAIProvider, type ToolCallResult } from "./base-provider.js";
 import { AISessionManager } from "../session/ai-session-manager.js";
 import type { ChatCompletionTool } from "../tools/tool-schema.js";
-import { log, logTrace } from "../../logger.js";
+import { log, logDebug } from "../../logger.js";
 import { UserProfileValidator } from "../validators/user-profile-validator.js";
 
 /**
@@ -168,7 +168,7 @@ export class GoogleGeminiProvider extends BaseAIProvider {
           },
         };
 
-        logTrace("Gemini request", {
+        logDebug("Gemini request", {
           provider: this.getProviderName(),
           model: this.config.model,
           contents,

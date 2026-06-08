@@ -10,10 +10,9 @@ import {
 import { homedir } from "os";
 import { join } from "path";
 
-export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
-  trace: 0,
   debug: 1,
   info: 2,
   warn: 3,
@@ -99,10 +98,6 @@ function writeLog(level: LogLevel, message: string, data?: unknown) {
 /** @deprecated Use logInfo/logWarn/logError/logDebug instead */
 export function log(message: string, data?: unknown) {
   writeLog("info", message, data);
-}
-
-export function logTrace(message: string, data?: unknown) {
-  writeLog("trace", message, data);
 }
 
 export function logDebug(message: string, data?: unknown) {
