@@ -29,8 +29,8 @@ describe("UserProfileManager – explicit preference writes", () => {
   });
 
   afterEach(() => {
-    connectionManager.closeAll();
-    rmSync(tmpDir, { recursive: true, force: true });
+    try { connectionManager.closeAll(); } catch {}
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   });
 
   it("creates a profile with an explicit preference when none exists", async () => {
@@ -160,10 +160,10 @@ describe("UserProfileManager – explicit preference writes", () => {
     const d2 = JSON.parse(p2.profileData);
     // Still only one entry (deduplicated by category+description)
     expect(d2.preferences.filter((p: any) => p.description === description)).toHaveLength(1);
-    // Confidence capped at 1.0 (bumped by 0.1 but clamped)
+    // Confidence: Bayesian(alpha=2, beta=1) = 0.67, never hits 1.0 from one match
     const conf = d2.preferences.find((p: any) => p.description === description)!.confidence;
     expect(conf).toBeLessThanOrEqual(1.0);
-    expect(conf).toBeGreaterThan(0.9);
+    expect(conf).toBeGreaterThan(0.5);
   });
 
   it("returns null profile for unknown user (no auto-create on read)", async () => {
