@@ -4,6 +4,7 @@ export interface UserProfilePreference {
   confidence: number;
   evidence: string[];
   lastUpdated: number;
+  matchCount?: number;
 }
 
 export interface UserProfilePattern {

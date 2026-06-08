@@ -4,7 +4,9 @@ import { connectionManager } from "../sqlite/connection-manager.js";
 import { CONFIG } from "../../config.js";
 import type { UserProfile, UserProfileChangelog, UserProfileData } from "./types.js";
 import { safeArray, safeObject } from "./profile-utils.js";
-import { log, logTrace } from "../logger.js";
+import { logDebug } from "../logger.js";
+import type { ConfidenceStrategy } from "./confidence/confidence-strategy.js";
+import { createConfidenceStrategy } from "./confidence/confidence-factory.js";
 
 const Database = getDatabase();
 type DatabaseType = typeof Database.prototype;
@@ -14,10 +16,20 @@ const USER_PROFILES_DB_NAME = "user-profiles.db";
 export class UserProfileManager {
   private db: DatabaseType;
   private readonly dbPath: string;
+  private readonly strategy: ConfidenceStrategy;
 
   constructor() {
     this.dbPath = join(CONFIG.storagePath, USER_PROFILES_DB_NAME);
     this.db = connectionManager.getConnection(this.dbPath);
+    this.strategy = createConfidenceStrategy(
+      CONFIG.userProfileConfidenceAlgorithm,
+      CONFIG.userProfileConfidenceLearningRate
+    );
+    logDebug("Confidence strategy initialized", {
+      algorithm: this.strategy.name,
+      needsMatchCount: this.strategy.needsMatchCount,
+      learningRate: CONFIG.userProfileConfidenceLearningRate,
+    });
     this.initDatabase();
   }
 
@@ -278,8 +290,12 @@ export class UserProfileManager {
         if (age > decayThreshold) {
           hasChanges = true;
           const oldConfidence = pref.confidence;
-          const decayFactor = Math.max(0.5, 1 - (age - decayThreshold) / decayThreshold);
-          const newConfidence = pref.confidence * decayFactor;
+          const newConfidence = this.strategy.decay({
+            confidence: pref.confidence,
+            age,
+            decayThreshold,
+            matchCount: pref.matchCount,
+          });
           decayLogs.push({
             category: pref.category,
             description: pref.description,
@@ -287,7 +303,6 @@ export class UserProfileManager {
             decayThresholdDays: CONFIG.userProfileConfidenceDecayDays,
             oldConfidence: Math.round(oldConfidence * 100) / 100,
             newConfidence: Math.round(newConfidence * 100) / 100,
-            decayFactor: Math.round(decayFactor * 100) / 100,
             action: "decayed",
           });
           return { ...pref, confidence: newConfidence, lastUpdated: now };
@@ -316,7 +331,7 @@ export class UserProfileManager {
       });
 
     if (decayLogs.length > 0) {
-      logTrace("applyConfidenceDecay: preferences evaluated", {
+      logDebug("applyConfidenceDecay: preferences evaluated", {
         profileId,
         total: decayLogs.length,
         decayed: decayLogs.filter((l) => l.action === "decayed").length,
@@ -419,23 +434,28 @@ export class UserProfileManager {
         if (existingIndex >= 0) {
           const existingItem = merged.preferences[existingIndex];
           if (existingItem) {
+            const matchCount = (existingItem.matchCount ?? 0) + 1;
             merged.preferences[existingIndex] = {
               ...newPref,
-              confidence: Math.max(newPref.confidence ?? 0, existingItem.confidence ?? 0),
+              confidence: this.strategy.merge({
+                existingConfidence: existingItem.confidence,
+                incomingConfidence: newPref.confidence ?? 0,
+                existingEvidence: existingItem.evidence,
+                incomingEvidence: newPref.evidence,
+                matchCount,
+              }),
+              matchCount,
               evidence: [
                 ...new Set([
                   ...this.ensureArray(existingItem.evidence),
                   ...this.ensureArray(newPref.evidence),
                 ]),
               ].slice(0, 5),
-              lastUpdated:
-                (newPref.confidence ?? 0) > (existingItem.confidence ?? 0)
-                  ? Date.now()
-                  : existingItem.lastUpdated,
+              lastUpdated: Date.now(),
             };
           }
         } else {
-          merged.preferences.push({ ...newPref, lastUpdated: Date.now() });
+          merged.preferences.push({ ...newPref, lastUpdated: Date.now(), matchCount: 0 });
         }
       }
 

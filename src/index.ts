@@ -7,12 +7,12 @@ import { formatContextForPrompt } from "./services/context.js";
 import { getTags } from "./services/tags.js";
 import { stripPrivateContent, isFullyPrivate } from "./services/privacy.js";
 import { performAutoCapture } from "./services/auto-capture.js";
-import { performUserProfileLearning } from "./services/user-memory-learning.js";
+import { performUserProfileLearning, reanalyzeUserProfile } from "./services/user-memory-learning.js";
 import { userPromptManager } from "./services/user-prompt/user-prompt-manager.js";
 import { startWebServer, WebServer } from "./services/web-server.js";
 
 import { isConfigured, CONFIG, initConfig } from "./config.js";
-import { log, logTrace } from "./services/logger.js";
+import { log, logDebug } from "./services/logger.js";
 import type { MemoryType } from "./types/index.js";
 import { getLanguageName } from "./services/language-detector.js";
 import type { MemoryScope } from "./services/client.js";
@@ -202,11 +202,11 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
         }
 
         if (memories.length === 0) {
-          logTrace("inject: no memories found, skipping injection");
+          logDebug("inject: no memories found, skipping injection");
           return;
         }
 
-        logTrace("inject: memories loaded", {
+        logDebug("inject: memories loaded", {
           count: memories.length,
           summaries: memories.map((m: any) => m.summary?.slice(0, 120)),
         });
@@ -224,7 +224,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
         const memoryContext = formatContextForPrompt(userId, projectMemories, userMessage);
 
         if (memoryContext) {
-          logTrace("inject: memoryContext", { context: memoryContext });
+          logDebug("inject: memoryContext", { context: memoryContext });
           const contextPart: Part = {
             id: `prt-memory-context-${Date.now()}`,
             sessionID: input.sessionID,
@@ -254,9 +254,9 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
 
     tool: {
       memory: tool({
-        description: `Your persistent brain. Before answering, always search(${getLanguageName(CONFIG.autoCaptureLanguage || "en")}) — you may have relevant knowledge. Save key info, decisions, and user preferences proactively. Search with technical keywords/tags (tags rank highest). Use 'profile' to store user preferences. Scope: project or all-projects.`,
+        description: `Your persistent brain. Before answering, always search(${getLanguageName(CONFIG.autoCaptureLanguage || "en")}) — you may have relevant knowledge. Save key info, decisions, and user preferences proactively. Search with technical keywords/tags (tags rank highest). Use 'profile' to store user preferences, 'reanalyze' to trigger AI-driven profile re-analysis. Scope: project or all-projects.`,
         args: {
-          mode: tool.schema.enum(["add", "search", "profile", "list", "forget", "help"]).optional(),
+          mode: tool.schema.enum(["add", "search", "profile", "reanalyze", "list", "forget", "help"]).optional(),
           content: tool.schema.string().optional(),
           query: tool.schema.string().optional(),
           tags: tool.schema.string().optional(),
@@ -267,7 +267,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
         },
         async execute(
           args: {
-            mode?: "add" | "search" | "profile" | "list" | "forget" | "help";
+            mode?: "add" | "search" | "profile" | "reanalyze" | "list" | "forget" | "help";
             content?: string;
             query?: string;
             tags?: string;
@@ -315,6 +315,11 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
                       description:
                         "View user profile or save an explicit preference (provide content to write)",
                       args: ["content?"],
+                    },
+                    {
+                      command: "reanalyze",
+                      description: "Trigger AI-driven user profile re-analysis from recent prompts",
+                      args: [],
                     },
                     { command: "list", description: "List recent memories", args: ["limit?"] },
                     { command: "forget", description: "Remove memory", args: ["memoryId"] },
@@ -452,6 +457,19 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
                 });
               }
 
+              case "reanalyze": {
+                setTimeout(() => {
+                  reanalyzeUserProfile(directory).catch((error) =>
+                    log("reanalyze error", { error: String(error) })
+                  );
+                }, 0);
+                return JSON.stringify({
+                  success: true,
+                  message:
+                    "Profile re-analysis started in background. Results will be available shortly.",
+                });
+              }
+
               case "list":
                 const listRes = await memoryClient.listMemories(
                   tags.project.tag,
@@ -505,6 +523,11 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
               if (await cleanupService.shouldRunCleanup()) await cleanupService.runCleanup();
               const { connectionManager } = await import("./services/sqlite/connection-manager.js");
               connectionManager.checkpointAll();
+              const { AIProviderFactory } = await import("./services/ai/ai-provider-factory.js");
+              const deleted = AIProviderFactory.cleanupExpiredSessions();
+              if (deleted > 0) {
+                logDebug("Cleaned up expired AI sessions", { deleted });
+              }
             }
           } catch (error) {
             log("Idle processing error", { error: String(error) });

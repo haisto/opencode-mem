@@ -61,7 +61,38 @@ interface OpenCodeMemConfig {
   userProfileMaxPreferences?: number;
   userProfileMaxPatterns?: number;
   userProfileMaxWorkflows?: number;
+  /**
+   * Days before preference confidence starts to decay (if not reinforced).
+   * Preferences that aren't seen again will gradually lose confidence and be removed.
+   * @default 30
+   */
   userProfileConfidenceDecayDays?: number;
+
+  /**
+   * Algorithm used to merge and decay preference confidence scores.
+   *
+   * - "beta-binomial" (default): Bayesian Beta-Binomial. Tracks match count for
+   *   gradual, asymptotically saturating updates. Most principled but requires
+   *   the `matchCount` field on preference items.
+   * - "ewma": Exponential Moving Average. Simple damped update, no extra fields needed.
+   * - "frequency-weighted": Diminishing returns per match. Requires `matchCount`.
+   * @default "beta-binomial"
+   */
+  userProfileConfidenceAlgorithm?: "beta-binomial" | "ewma" | "frequency-weighted";
+
+  /**
+   * Learning rate for "ewma" and "frequency-weighted" algorithms.
+   * Higher values make confidence move faster toward new observations.
+   * Ignored by "beta-binomial".
+   * @default 0.3
+   */
+  userProfileConfidenceLearningRate?: number;
+
+  /**
+   * Number of profile versions to keep in changelog (for rollback/debugging).
+   * Older versions are automatically cleaned up.
+   * @default 5
+   */
   userProfileChangelogRetentionCount?: number;
   showAutoCaptureToasts?: boolean;
   showUserProfileToasts?: boolean;
@@ -144,6 +175,16 @@ const DEFAULTS: Required<
   userProfileMaxPatterns: 15,
   userProfileMaxWorkflows: 10,
   userProfileConfidenceDecayDays: 30,
+  /*
+   * Algorithm used to merge and decay preference confidence scores.
+   * "beta-binomial" | "ewma" | "frequency-weighted"
+   */
+  userProfileConfidenceAlgorithm: "beta-binomial",
+  /*
+   * Learning rate for "ewma" and "frequency-weighted" algorithms.
+   * Ignored by "beta-binomial".
+   */
+  userProfileConfidenceLearningRate: 0.3,
   userProfileChangelogRetentionCount: 5,
   showAutoCaptureToasts: true,
   showUserProfileToasts: true,
@@ -411,7 +452,17 @@ const CONFIG_TEMPLATE = `{
   // Days before preference confidence starts to decay (if not reinforced)
   // Preferences that aren't seen again will gradually lose confidence and be removed
   "userProfileConfidenceDecayDays": 30,
-  
+
+  // Algorithm used to merge and decay preference confidence scores.
+  // "beta-binomial" (default) — Bayesian Beta-Binomial, gradual saturating updates, needs matchCount
+  // "ewma"               — Exponential Moving Average, simple damped update, no extra fields
+  // "frequency-weighted" — Diminishing returns per match, needs matchCount
+  "userProfileConfidenceAlgorithm": "beta-binomial",
+
+  // Learning rate for "ewma" and "frequency-weighted" algorithms (0-1).
+  // Higher = faster adaptation. Ignored by "beta-binomial".
+  "userProfileConfidenceLearningRate": 0.3,
+
   // Number of profile versions to keep in changelog (for rollback/debugging)
   // Older versions are automatically cleaned up
   "userProfileChangelogRetentionCount": 5,
@@ -565,6 +616,10 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
     userProfileMaxWorkflows: fileConfig.userProfileMaxWorkflows ?? DEFAULTS.userProfileMaxWorkflows,
     userProfileConfidenceDecayDays:
       fileConfig.userProfileConfidenceDecayDays ?? DEFAULTS.userProfileConfidenceDecayDays,
+    userProfileConfidenceAlgorithm:
+      fileConfig.userProfileConfidenceAlgorithm ?? DEFAULTS.userProfileConfidenceAlgorithm,
+    userProfileConfidenceLearningRate:
+      fileConfig.userProfileConfidenceLearningRate ?? DEFAULTS.userProfileConfidenceLearningRate,
     userProfileChangelogRetentionCount:
       fileConfig.userProfileChangelogRetentionCount ?? DEFAULTS.userProfileChangelogRetentionCount,
     showAutoCaptureToasts: fileConfig.showAutoCaptureToasts ?? DEFAULTS.showAutoCaptureToasts,

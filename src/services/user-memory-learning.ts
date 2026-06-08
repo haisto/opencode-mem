@@ -317,3 +317,59 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
 
   return rawData as UserProfileData;
 }
+
+export async function reanalyzeUserProfile(
+  directory: string
+): Promise<{ success: boolean; message: string }> {
+  const tags = getTags(directory);
+  const userId = tags.user.userEmail || "unknown";
+
+  const count = userPromptManager.countUnanalyzedForUserLearning();
+  if (count === 0) {
+    return { success: true, message: "No new prompts to analyze. Profile is up to date." };
+  }
+
+  const prompts = userPromptManager.getPromptsForUserLearning(count);
+  if (prompts.length === 0) {
+    return { success: true, message: "No new prompts found for analysis." };
+  }
+
+  const existingProfile = userProfileManager.getActiveProfile(userId);
+  const context = buildUserAnalysisContext(prompts, existingProfile);
+  const updatedProfileData = await analyzeUserProfile(context, existingProfile);
+
+  if (!updatedProfileData) {
+    userPromptManager.markMultipleAsUserLearningCaptured(prompts.map((p) => p.id));
+    return { success: true, message: "Analysis completed with no changes to profile." };
+  }
+
+  if (existingProfile) {
+    const changeSummary = generateChangeSummary(
+      JSON.parse(existingProfile.profileData),
+      updatedProfileData
+    );
+    userProfileManager.updateProfile(
+      existingProfile.id,
+      updatedProfileData,
+      prompts.length,
+      changeSummary
+    );
+    userProfileManager.applyConfidenceDecay(existingProfile.id);
+  } else {
+    userProfileManager.createProfile(
+      userId,
+      tags.user.displayName || "Unknown",
+      tags.user.userName || "unknown",
+      tags.user.userEmail || "unknown",
+      updatedProfileData,
+      prompts.length
+    );
+  }
+
+  userPromptManager.markMultipleAsUserLearningCaptured(prompts.map((p) => p.id));
+
+  return {
+    success: true,
+    message: `Profile reanalyzed: processed ${prompts.length} prompts.`,
+  };
+}
