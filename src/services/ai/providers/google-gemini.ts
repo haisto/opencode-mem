@@ -1,7 +1,7 @@
 import { BaseAIProvider, type ToolCallResult } from "./base-provider.js";
 import { AISessionManager } from "../session/ai-session-manager.js";
 import type { ChatCompletionTool } from "../tools/tool-schema.js";
-import { log } from "../../logger.js";
+import { log, logTrace } from "../../logger.js";
 import { UserProfileValidator } from "../validators/user-profile-validator.js";
 
 /**
@@ -167,6 +167,14 @@ export class GoogleGeminiProvider extends BaseAIProvider {
             temperature: this.config.memoryTemperature ?? 0.3,
           },
         };
+
+        logTrace("Gemini request", {
+          provider: this.getProviderName(),
+          model: this.config.model,
+          contents,
+          systemInstruction: geminiSystemInstruction,
+          tools,
+        });
 
         const response = await fetch(url, {
           method: "POST",

@@ -1,7 +1,7 @@
 import { BaseAIProvider, type ToolCallResult, applySafeExtraParams } from "./base-provider.js";
 import { AISessionManager } from "../session/ai-session-manager.js";
 import { ToolSchemaConverter, type ChatCompletionTool } from "../tools/tool-schema.js";
-import { log } from "../../logger.js";
+import { log, logTrace } from "../../logger.js";
 
 interface ResponsesAPIOutput {
   id: string;
@@ -83,6 +83,14 @@ export class OpenAIResponsesProvider extends BaseAIProvider {
         if (this.config.extraParams) {
           applySafeExtraParams(requestBody, this.config.extraParams);
         }
+
+        logTrace("OpenAI Responses request", {
+          provider: this.getProviderName(),
+          model: this.config.model,
+          input: requestBody.input,
+          instructions: requestBody.instructions,
+          tools: requestBody.tools,
+        });
 
         const response = await fetch(`${this.config.apiUrl}/responses`, {
           method: "POST",

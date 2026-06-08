@@ -7,7 +7,7 @@ import {
 import type { AISessionManager } from "../session/ai-session-manager.js";
 import type { AIMessage } from "../session/session-types.js";
 import type { ChatCompletionTool } from "../tools/tool-schema.js";
-import { log } from "../../logger.js";
+import { log, logTrace } from "../../logger.js";
 import { UserProfileValidator } from "../validators/user-profile-validator.js";
 
 interface ToolCallResponse {
@@ -239,6 +239,13 @@ export class OpenAIChatCompletionProvider extends BaseAIProvider {
         if (this.config.apiKey) {
           headers.Authorization = `Bearer ${this.config.apiKey}`;
         }
+
+        logTrace("OpenAI Chat request", {
+          provider: this.getProviderName(),
+          model: this.config.model,
+          messages: requestBody.messages,
+          tools: requestBody.tools,
+        });
 
         const response = await fetch(`${this.config.apiUrl}/chat/completions`, {
           method: "POST",
