@@ -190,6 +190,27 @@ export class AISessionManager {
     this.db.run("DELETE FROM ai_messages WHERE ai_session_id = ?", [aiSessionId]);
   }
 
+  /** Delete messages older than retention period, then prune orphaned sessions. */
+  cleanupOldMessages(): { messagesDeleted: number; sessionsDeleted: number } {
+    const cutoff = Date.now() - this.sessionRetentionMs;
+
+    // Delete expired messages directly (not reliant on session cascade)
+    const msgResult = this.db.run("DELETE FROM ai_messages WHERE created_at < ?", [cutoff]);
+
+    // Prune sessions that have no remaining messages and are past expiry
+    const sessResult = this.db.run(
+      `DELETE FROM ai_sessions WHERE id NOT IN (
+        SELECT DISTINCT ai_session_id FROM ai_messages
+      ) AND expires_at < ?`,
+      [Date.now()]
+    );
+
+    return {
+      messagesDeleted: msgResult.changes,
+      sessionsDeleted: sessResult.changes,
+    };
+  }
+
   private rowToSession(row: any): AISession {
     return {
       id: row.id,

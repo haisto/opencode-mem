@@ -33,4 +33,8 @@ export class AIProviderFactory {
   static cleanupExpiredSessions(): number {
     return aiSessionManager.cleanupExpiredSessions();
   }
+
+  static cleanupOldMessages(): { messagesDeleted: number; sessionsDeleted: number } {
+    return aiSessionManager.cleanupOldMessages();
+  }
 }

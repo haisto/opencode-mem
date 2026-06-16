@@ -1,7 +1,7 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 import { memoryClient } from "./client.js";
 import { getTags } from "./tags.js";
-import { log } from "./logger.js";
+import { log, logDebug } from "./logger.js";
 import { CONFIG } from "../config.js";
 import { userPromptManager } from "./user-prompt/user-prompt-manager.js";
 
@@ -384,6 +384,28 @@ Analyze this conversation. If it contains technical work (code, bugs, features, 
 
   if (!result.success || !result.data) {
     throw new Error(result.error || "Failed to generate summary");
+  }
+
+  // Clean up AI session messages to prevent unbounded context growth.
+  // Each idle event appends 2-12 messages; without cleanup they accumulate
+  // across the session lifetime, growing request sizes to 300K+ tokens.
+  try {
+    const { aiSessionManager } = await import("./ai/session/ai-session-manager.js");
+    const session = aiSessionManager.getSession(sessionID, CONFIG.memoryProvider);
+    if (session) {
+      aiSessionManager.clearMessages(session.id);
+      logDebug("Auto-capture: cleared AI session messages", {
+        sessionId: sessionID,
+        aiSessionId: session.id,
+      });
+    } else {
+      logDebug("Auto-capture: no active AI session to clear", {
+        sessionId: sessionID,
+        provider: CONFIG.memoryProvider,
+      });
+    }
+  } catch {
+    // Non-critical cleanup, safe to ignore
   }
 
   return {

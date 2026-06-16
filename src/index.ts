@@ -517,17 +517,23 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
           try {
             await performAutoCapture(ctx, sessionID, directory);
 
+            // Always clean up AI session data (not gated by webServer ownership)
+            const { AIProviderFactory } = await import("./services/ai/ai-provider-factory.js");
+            const expiredDeleted = AIProviderFactory.cleanupExpiredSessions();
+            if (expiredDeleted > 0) {
+              logDebug("Cleaned up expired AI sessions", { deleted: expiredDeleted });
+            }
+            const msgCleanup = AIProviderFactory.cleanupOldMessages();
+            if (msgCleanup.messagesDeleted > 0 || msgCleanup.sessionsDeleted > 0) {
+              logDebug("Cleaned up old AI messages by retention", msgCleanup);
+            }
+
             if (webServer?.isServerOwner()) {
               await performUserProfileLearning(ctx, directory);
               const { cleanupService } = await import("./services/cleanup-service.js");
               if (await cleanupService.shouldRunCleanup()) await cleanupService.runCleanup();
               const { connectionManager } = await import("./services/sqlite/connection-manager.js");
               connectionManager.checkpointAll();
-              const { AIProviderFactory } = await import("./services/ai/ai-provider-factory.js");
-              const deleted = AIProviderFactory.cleanupExpiredSessions();
-              if (deleted > 0) {
-                logDebug("Cleaned up expired AI sessions", { deleted });
-              }
             }
           } catch (error) {
             log("Idle processing error", { error: String(error) });
