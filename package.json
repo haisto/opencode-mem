@@ -1,6 +1,6 @@
 {
   "name": "@haisto/opencode-mem",
-  "version": "2.16.0-beta.5",
+  "version": "2.16.0-beta.6",
   "description": "OpenCode plugin that gives coding agents persistent memory using local vector database",
   "type": "module",
   "main": "dist/plugin.js",
