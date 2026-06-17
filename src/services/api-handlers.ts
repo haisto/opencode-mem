@@ -2,10 +2,11 @@ import { embeddingService } from "./embedding.js";
 import { shardManager } from "./sqlite/shard-manager.js";
 import { vectorSearch } from "./sqlite/vector-search.js";
 import { connectionManager } from "./sqlite/connection-manager.js";
-import { log, logDebug } from "./logger.js";
+import { log, logInfo, logWarn, logError, logDebug } from "./logger.js";
 import { CONFIG } from "../config.js";
 import type { MemoryType } from "../types/index.js";
 import { userPromptManager } from "./user-prompt/user-prompt-manager.js";
+import { isMemoryId } from "./id-utils.js";
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -571,6 +572,100 @@ interface FormattedMemory {
 
 type SearchResultItem = FormattedPrompt | FormattedMemory;
 
+/**
+ * 精确 memory ID 搜索
+ *
+ * 当查询参数匹配 memory ID 格式（mem_<timestamp>_<random>）时，
+ * 跳过向量 embedding 和语义搜索，直接按主键精确查找。
+ * 如果找到匹配的记忆且关联了 prompt，一并返回。
+ *
+ * @param memoryId - 记忆 ID
+ * @param page - 当前页码（透传，始终返回第 1 页）
+ * @param pageSize - 每页条数（透传）
+ * @returns 精确搜索结果
+ */
+async function handleExactMemoryIdSearch(
+  memoryId: string,
+  page: number,
+  pageSize: number
+): Promise<ApiResponse<PaginatedResponse<SearchResultItem>>> {
+  try {
+    const projectShards = shardManager.getAllShards("project", "");
+    let foundMemory: any = null;
+    for (const shard of projectShards) {
+      try {
+        const db = connectionManager.getConnection(shard.dbPath);
+        const memory = vectorSearch.getMemoryById(db, memoryId);
+        if (memory) {
+          foundMemory = memory;
+          break;
+        }
+      } catch (error) {
+        // 单个 shard 查询失败时记录日志，继续查找下一个 shard
+        logWarn("handleExactMemoryIdSearch: shard query failed", {
+          shardId: shard.id,
+          error: String(error),
+        });
+      }
+    }
+
+    if (!foundMemory) {
+      return { success: true, data: { items: [], total: 0, page, pageSize, totalPages: 0 } };
+    }
+
+    const metadata = safeJSONParse(foundMemory.metadata);
+    const items: SearchResultItem[] = [];
+
+    // 精确匹配的记忆，similarity = 1.0
+    items.push({
+      type: "memory",
+      id: foundMemory.id,
+      content: foundMemory.content,
+      memoryType: foundMemory.type,
+      tags: foundMemory.tags ? foundMemory.tags.split(",").map((t: string) => t.trim()) : [],
+      createdAt: safeToISOString(foundMemory.created_at),
+      updatedAt: foundMemory.updated_at ? safeToISOString(foundMemory.updated_at) : undefined,
+      similarity: 1.0,
+      metadata,
+      displayName: foundMemory.display_name,
+      userName: foundMemory.user_name,
+      userEmail: foundMemory.user_email,
+      projectPath: foundMemory.project_path,
+      projectName: foundMemory.project_name,
+      gitRepoUrl: foundMemory.git_repo_url,
+      isPinned: foundMemory.is_pinned === 1,
+      linkedPromptId: metadata?.promptId,
+    });
+
+    // 如果记忆关联了 prompt，一同返回
+    if (metadata?.promptId) {
+      const prompts = userPromptManager.getPromptsByIds([metadata.promptId]);
+      for (const p of prompts) {
+        items.push({
+          type: "prompt",
+          id: p.id,
+          sessionId: p.sessionId,
+          content: p.content,
+          createdAt: safeToISOString(p.createdAt),
+          projectPath: p.projectPath,
+          linkedMemoryId: p.linkedMemoryId,
+          similarity: 1.0,
+          isContext: true,
+        });
+      }
+    }
+
+    const total = items.length;
+    return {
+      success: true,
+      data: { items, total, page: 1, pageSize, totalPages: 1 },
+    };
+  } catch (error) {
+    logError("handleExactMemoryIdSearch: error", { error: String(error) });
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function handleSearch(
   query: string,
   tag?: string,
@@ -579,6 +674,12 @@ export async function handleSearch(
 ): Promise<ApiResponse<PaginatedResponse<SearchResultItem>>> {
   try {
     if (!query) return { success: false, error: "query is required" };
+
+    // 精确 ID 匹配：当查询参数为 memory ID 时跳过语义搜索，直接按主键查找
+    if (isMemoryId(query)) {
+      return await handleExactMemoryIdSearch(query, page, pageSize);
+    }
+
     await embeddingService.warmup();
     const queryVector = await embeddingService.embedWithTimeout(query);
     let memoryResults: any[] = [];
