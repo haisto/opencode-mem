@@ -236,6 +236,8 @@ export class ConsolidationService {
       for (const mem of scopedMemories) {
         // Skip pinned memories so they are never superseded
         if (mem.is_pinned === 1) continue;
+        // Skip memories already superseded in a previous run
+        if (mem.superseded_by) continue;
         if (!mem.vector) continue;
         const tag = `${mem.container_tag}::${mem.type || ""}`;
         if (!groups.has(tag)) groups.set(tag, []);
@@ -293,10 +295,6 @@ export class ConsolidationService {
                 // Mark superseded memory
                 db.prepare(`UPDATE memories SET superseded_by = ? WHERE id = ?`)
                   .run(survivor.id, superseded.id);
-
-                // Null vectors in SQLite (keep row for audit trail)
-                db.prepare(`UPDATE memories SET vector = NULL, tags_vector = NULL WHERE id = ?`)
-                  .run(superseded.id);
 
                 // Read current survivor state inside transaction = serialized
                 const currentRow = db
