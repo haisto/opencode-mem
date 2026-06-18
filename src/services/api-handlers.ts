@@ -201,6 +201,7 @@ export async function handleListMemories(
         projectName: r.project_name,
         gitRepoUrl: r.git_repo_url,
         isPinned: r.is_pinned === 1,
+        mergeCount: r.merge_count || 0,
       };
     });
 
@@ -276,6 +277,7 @@ export async function handleListMemories(
           projectName: item.projectName,
           gitRepoUrl: item.gitRepoUrl,
           isPinned: item.isPinned,
+          mergeCount: item.mergeCount,
         };
       } else {
         return {
@@ -566,6 +568,7 @@ interface FormattedMemory {
   projectName?: string;
   gitRepoUrl?: string;
   isPinned?: boolean;
+  mergeCount?: number;
   linkedPromptId?: string;
   isContext?: boolean;
 }
@@ -634,6 +637,7 @@ async function handleExactMemoryIdSearch(
       projectName: foundMemory.project_name,
       gitRepoUrl: foundMemory.git_repo_url,
       isPinned: foundMemory.is_pinned === 1,
+      mergeCount: foundMemory.merge_count || 0,
       linkedPromptId: metadata?.promptId,
     });
 
@@ -755,6 +759,7 @@ export async function handleSearch(
       projectName: r.projectName,
       gitRepoUrl: r.gitRepoUrl,
       isPinned: r.isPinned === 1,
+      mergeCount: r.mergeCount || 0,
       linkedPromptId: r.metadata?.promptId,
     }));
 
@@ -821,6 +826,7 @@ export async function handleSearch(
               projectName: m.project_name,
               gitRepoUrl: m.git_repo_url,
               isPinned: m.is_pinned === 1,
+              mergeCount: m.merge_count || 0,
               linkedPromptId: safeJSONParse(m.metadata)?.promptId,
               isContext: true,
             });

@@ -167,8 +167,9 @@ function renderCombinedCard(pair) {
   const dateInfo = updatedDate
     ? `<span>${t("date-created")} ${createdDate}</span><span>${t("date-updated")} ${updatedDate}</span>`
     : `<span>${t("date-created")} ${createdDate}</span>`;
+  const isMerged = memory.mergeCount > 0;
   return `
-    <div class="combined-card ${isSelected ? "selected" : ""} ${isPinned ? "pinned" : ""}" data-id="${memory.id}">
+    <div class="combined-card ${isSelected ? "selected" : ""} ${isPinned ? "pinned" : ""} ${isMerged ? "merged" : ""}" data-id="${memory.id}">
       <div class="combined-prompt-section">
         <div class="combined-header">
           <span class="badge badge-prompt">${t("badge-prompt")}</span>
@@ -203,12 +204,12 @@ function renderCombinedCard(pair) {
         <div class="memory-content markdown-content">${renderMarkdown(memory.content)}</div>
         <div class="memory-footer">
           ${dateInfo}
-          <span>${t("label-id")} ${memory.id}</span>
+          <span class="memory-id${isMerged ? " merged" : ""}">${t("label-id")} ${memory.id}</span>
         </div>
       </div>
     </div>
   `;
-}
+  }
 
 function renderPromptCard(prompt) {
   const isLinked = !!prompt.linkedMemoryId;
@@ -279,8 +280,9 @@ function renderMemoryCard(memory) {
       ? `<div class="tags-list">${memory.tags.map((t) => `<span class="tag-badge">${escapeHtml(t)}</span>`).join("")}</div>`
       : "";
 
+  const isMerged = memory.mergeCount > 0;
   return `
-    <div class="memory-card ${isSelected ? "selected" : ""} ${isPinned ? "pinned" : ""}" data-id="${memory.id}">
+    <div class="memory-card ${isSelected ? "selected" : ""} ${isPinned ? "pinned" : ""} ${isMerged ? "merged" : ""}" data-id="${memory.id}">
       <div class="memory-header">
         <div class="meta">
           <input type="checkbox" class="memory-checkbox" data-id="${memory.id}" ${isSelected ? "checked" : ""} />
@@ -305,7 +307,7 @@ function renderMemoryCard(memory) {
       ${isLinked ? `<div class="link-indicator"><i data-lucide="arrow-up" class="icon-sm"></i> ${t("text-from-below")} <i data-lucide="arrow-down" class="icon-sm"></i></div>` : ""}
       <div class="memory-footer">
         ${dateInfo}
-        <span>${t("label-id")} ${memory.id}</span>
+        <span class="memory-id${isMerged ? " merged" : ""}">${t("label-id")} ${memory.id}</span>
       </div>
     </div>
   `;

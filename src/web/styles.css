@@ -688,6 +688,21 @@ button:disabled {
   border-left: 3px solid var(--om-accent-magenta);
 }
 
+.badge-merged {
+  color: var(--om-accent-orange);
+  border-color: var(--om-accent-orange);
+}
+
+.memory-card.merged,
+.combined-card.merged {
+  border-left: 3px solid var(--om-accent-orange);
+}
+
+.memory-id.merged {
+  color: var(--om-accent-orange);
+  font-weight: bold;
+}
+
 .memory-content {
   color: var(--om-text-primary);
   margin: 10px 0;
