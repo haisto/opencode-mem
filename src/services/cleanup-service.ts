@@ -68,11 +68,13 @@ export class CleanupService {
       for (const shard of allShards) {
         const db = connectionManager.getConnection(shard.dbPath);
 
+        // Exclude merged survivors (superseded_by IS NOT NULL) from auto-cleanup
+        // to prevent deleting memories that have absorbed others via consolidation.
         const oldMemories = db
           .prepare(
             `
           SELECT id, container_tag, is_pinned FROM memories 
-          WHERE updated_at < ?
+          WHERE updated_at < ? AND superseded_by IS NULL
         `
           )
           .all(cutoffTime) as any[];

@@ -111,6 +111,24 @@ interface OpenCodeMemConfig {
     injectMaxPatterns?: number;
     injectMaxWorkflows?: number;
   };
+  /**
+   * Self-evolution consolidation settings.
+   * Merges near-duplicate memories during idle time.
+   */
+  consolidation?: {
+    /**
+     * Enable or disable the consolidation pipeline.
+     */
+    enabled?: boolean;
+    /**
+     * Cosine similarity threshold (0-1) for near-duplicate detection.
+     */
+    mergeThreshold?: number;
+    /**
+     * Minimum interval in ms between consolidation runs.
+     */
+    minIntervalMs?: number;
+  };
 }
 
 const DEFAULTS: Required<
@@ -205,6 +223,15 @@ const DEFAULTS: Required<
     injectMaxPreferences: 5,
     injectMaxPatterns: 5,
     injectMaxWorkflows: 3,
+  },
+  /*
+   * Self-evolution consolidation pipeline.
+   * Runs during idle to automatically merge near-duplicate memories.
+   */
+  consolidation: {
+    enabled: true,
+    mergeThreshold: 0.92,
+    minIntervalMs: 3600000,
   },
 };
 
@@ -494,6 +521,17 @@ const CONFIG_TEMPLATE = `{
   },
 
   // ============================================
+  // Consolidation Settings
+  // ============================================
+  
+  // Automatically merge near-duplicate memories during idle time
+  "consolidation": {
+    "enabled": true,
+    "mergeThreshold": 0.92,
+    "minIntervalMs": 3600000
+  },
+
+  // ============================================
   // Advanced Settings
   // ============================================
   
@@ -647,6 +685,12 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
         fileConfig.chatMessage?.injectMaxPatterns ?? DEFAULTS.chatMessage.injectMaxPatterns,
       injectMaxWorkflows:
         fileConfig.chatMessage?.injectMaxWorkflows ?? DEFAULTS.chatMessage.injectMaxWorkflows,
+    },
+    // Consolidation: merge near-duplicate memories during idle time
+    consolidation: {
+      enabled: fileConfig.consolidation?.enabled ?? DEFAULTS.consolidation.enabled,
+      mergeThreshold: fileConfig.consolidation?.mergeThreshold ?? DEFAULTS.consolidation.mergeThreshold,
+      minIntervalMs: fileConfig.consolidation?.minIntervalMs ?? DEFAULTS.consolidation.minIntervalMs,
     },
   };
 }

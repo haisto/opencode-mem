@@ -532,6 +532,16 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
               await performUserProfileLearning(ctx, directory);
               const { cleanupService } = await import("./services/cleanup-service.js");
               if (await cleanupService.shouldRunCleanup()) await cleanupService.runCleanup();
+              // Fast-path: skip dynamic import when consolidation is disabled
+              if (CONFIG.consolidation?.enabled !== false) {
+                const { consolidationService } = await import(
+                  "./services/evolution/consolidation-service.js"
+                );
+                if (await consolidationService.shouldRun()) {
+                  const result = await consolidationService.run(tags.project.tag);
+                  logDebug("Consolidation complete", result);
+                }
+              }
               const { connectionManager } = await import("./services/sqlite/connection-manager.js");
               connectionManager.checkpointAll();
             }

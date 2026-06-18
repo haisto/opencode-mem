@@ -26,6 +26,18 @@ export interface MemoryRecord {
   projectPath?: string;
   projectName?: string;
   gitRepoUrl?: string;
+  /**
+   * ID of the memory that superseded (replaced) this one.
+   */
+  superseded_by?: string;
+  /**
+   * JSON array of memory IDs that were merged into this one.
+   */
+  merged_from?: string;
+  /**
+   * Number of times this memory has been merged into (consolidation count).
+   */
+  merge_count?: number;
 }
 
 export interface SearchResult {
@@ -40,4 +52,5 @@ export interface SearchResult {
   projectPath?: string;
   projectName?: string;
   gitRepoUrl?: string;
+  mergeCount?: number;
 }

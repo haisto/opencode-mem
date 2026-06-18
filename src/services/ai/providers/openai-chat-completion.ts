@@ -240,12 +240,12 @@ export class OpenAIChatCompletionProvider extends BaseAIProvider {
           headers.Authorization = `Bearer ${this.config.apiKey}`;
         }
 
-        logDebug("OpenAI Chat request", {
-          provider: this.getProviderName(),
-          model: this.config.model,
-          messages: requestBody.messages,
-          tools: requestBody.tools,
-        });
+        // logDebug("OpenAI Chat request", {
+        //   provider: this.getProviderName(),
+        //   model: this.config.model,
+        //   messages: requestBody.messages,
+        //   tools: requestBody.tools,
+        // });
 
         const response = await fetch(`${this.config.apiUrl}/chat/completions`, {
           method: "POST",

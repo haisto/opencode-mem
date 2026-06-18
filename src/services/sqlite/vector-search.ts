@@ -195,6 +195,7 @@ export class VectorSearch {
         projectName: row.project_name,
         gitRepoUrl: row.git_repo_url,
         isPinned: row.is_pinned,
+        mergeCount: row.merge_count || 0,
       };
     });
 
@@ -234,6 +235,16 @@ export class VectorSearch {
       await backend.delete({ id: memoryId, shard, kind: "content" });
       await backend.delete({ id: memoryId, shard, kind: "tags" });
     }
+  }
+
+  /**
+   * Remove vector index entries for a memory without deleting the SQLite row.
+   * Used by the consolidation pipeline to keep the superseded_by audit trail.
+   */
+  async removeVectorIndex(db: DatabaseType, memoryId: string, shard: ShardInfo): Promise<void> {
+    const backend = await this.getBackend();
+    await backend.delete({ id: memoryId, shard, kind: "content" });
+    await backend.delete({ id: memoryId, shard, kind: "tags" });
   }
 
   async updateVector(
@@ -306,13 +317,17 @@ export class VectorSearch {
   }
 
   countVectors(db: DatabaseType, containerTag: string): number {
-    const stmt = db.prepare(`SELECT COUNT(*) as count FROM memories WHERE container_tag = ?`);
+    // Exclude NULL vectors — consolidated survivors set vector=NULL to keep audit trail
+    const stmt = db.prepare(
+      `SELECT COUNT(*) as count FROM memories WHERE container_tag = ? AND vector IS NOT NULL`
+    );
     const result = stmt.get(containerTag) as any;
     return result.count;
   }
 
   countAllVectors(db: DatabaseType): number {
-    const stmt = db.prepare(`SELECT COUNT(*) as count FROM memories`);
+    // Exclude NULL vectors — consolidated survivors set vector=NULL to keep audit trail
+    const stmt = db.prepare(`SELECT COUNT(*) as count FROM memories WHERE vector IS NOT NULL`);
     const result = stmt.get() as any;
     return result.count;
   }

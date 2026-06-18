@@ -32,6 +32,41 @@ export const METADATA_MIGRATIONS: readonly Migration[] = [
 
 export const SHARD_MIGRATIONS: readonly Migration[] = [
   { version: 1, description: "Baseline schema", up: () => {} },
+
+  /**
+   * v2 — Add consolidation columns to `memories` table.
+   *
+   * Introduces three columns supporting the self-evolution consolidation
+   * pipeline: superseded_by (ID of the survivor that replaced this record),
+   * merged_from (JSON array of source IDs that were merged into this one),
+   * and merge_count (how many times this record has been a merge target).
+   *
+   * Each ALTER TABLE is guarded by PRAGMA table_info so the migration is
+   * idempotent across restarts (already-applied columns are skipped).
+   */
+  {
+    version: 2,
+    description: "Add superseded_by, merged_from, merge_count to memories",
+    up: (db: any) => {
+      const tableInfo = db
+        .prepare("PRAGMA table_info('memories')")
+        .all() as any[];
+      const hasColumn = (name: string) =>
+        tableInfo.some((col: any) => col.name === name);
+
+      if (!hasColumn("superseded_by")) {
+        db.run("ALTER TABLE memories ADD COLUMN superseded_by TEXT");
+      }
+      if (!hasColumn("merged_from")) {
+        db.run("ALTER TABLE memories ADD COLUMN merged_from TEXT");
+      }
+      if (!hasColumn("merge_count")) {
+        db.run(
+          "ALTER TABLE memories ADD COLUMN merge_count INTEGER DEFAULT 0",
+        );
+      }
+    },
+  },
 ];
 
 // ── ai-sessions.db ─────────────────────────────────────────────────────────
