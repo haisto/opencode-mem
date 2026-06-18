@@ -326,7 +326,7 @@ export async function handleAddMemory(data: {
 
     const { scope, hash } = extractScopeFromTag(data.containerTag);
 
-    const shard = shardManager.getWriteShard(scope, hash);
+    const shard = await shardManager.getWriteShard(scope, hash);
 
     const id = `mem_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     const now = Date.now();

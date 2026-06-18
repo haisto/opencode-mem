@@ -107,7 +107,7 @@ export class ShardManager {
     }));
   }
 
-  createShard(scope: "user" | "project", scopeHash: string, shardIndex: number): ShardInfo {
+  async createShard(scope: "user" | "project", scopeHash: string, shardIndex: number): Promise<ShardInfo> {
     const fullPath = this.getShardPath(scope, scopeHash, shardIndex);
     const storedPath = join(`${scope}s`, basename(fullPath)).replace(/\\/g, "/");
     const now = Date.now();
@@ -121,6 +121,20 @@ export class ShardManager {
 
     const db = connectionManager.getConnection(fullPath);
     this.initShardDb(db);
+
+    // Run pending schema migrations on this new shard so evolution columns exist
+    try {
+      const { runMigrations } = await import("../migrations/runner.js");
+      const { SHARD_MIGRATIONS } = await import("../migrations/registry.js");
+      await runMigrations(db, SHARD_MIGRATIONS);
+    } catch (error) {
+      log("Shard migration failed on new shard", {
+        scope,
+        scopeHash,
+        shardIndex,
+        error: String(error),
+      });
+    }
 
     return {
       id: Number(result.lastInsertRowid),
@@ -220,11 +234,11 @@ export class ShardManager {
     }
   }
 
-  getWriteShard(scope: "user" | "project", scopeHash: string): ShardInfo {
+  async getWriteShard(scope: "user" | "project", scopeHash: string): Promise<ShardInfo> {
     let shard = this.getActiveShard(scope, scopeHash);
 
     if (!shard) {
-      return this.createShard(scope, scopeHash, 0);
+      return await this.createShard(scope, scopeHash, 0);
     }
 
     if (!this.isShardValid(shard)) {
@@ -240,12 +254,12 @@ export class ShardManager {
       const deleteStmt = this.metadataDb.prepare(`DELETE FROM shards WHERE id = ?`);
       deleteStmt.run(shard.id);
 
-      return this.createShard(scope, scopeHash, shard.shardIndex);
+      return await this.createShard(scope, scopeHash, shard.shardIndex);
     }
 
     if (shard.vectorCount >= CONFIG.maxVectorsPerShard) {
       this.markShardReadOnly(shard.id);
-      return this.createShard(scope, scopeHash, shard.shardIndex + 1);
+      return await this.createShard(scope, scopeHash, shard.shardIndex + 1);
     }
 
     return shard;

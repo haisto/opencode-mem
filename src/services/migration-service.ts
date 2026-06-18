@@ -256,7 +256,7 @@ export class MigrationService {
 
             const scope = memory.containerTag.includes("_user_") ? "user" : "project";
             const hash = memory.containerTag.split("_").slice(2).join("_");
-            const newShard = shardManager.getWriteShard(scope, hash);
+            const newShard = await shardManager.getWriteShard(scope, hash);
             const newDb = connectionManager.getConnection(newShard.dbPath);
 
             await vectorSearch.insertVector(

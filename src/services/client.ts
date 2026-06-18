@@ -173,7 +173,7 @@ export class LocalMemoryClient {
       }
 
       const { scope, hash } = extractScopeFromContainerTag(containerTag);
-      const shard = shardManager.getWriteShard(scope, hash);
+      const shard = await shardManager.getWriteShard(scope, hash);
 
       const id = `mem_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const now = Date.now();
