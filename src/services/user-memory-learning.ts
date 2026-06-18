@@ -181,7 +181,7 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
     const schema = z.object({
       preferences: z.array(
         z.object({
-          category: z.string(),
+          category: z.string().describe("Category for the companion description, e.g. coding-style."),
           description: z.string(),
           confidence: z.number(),
           evidence: z.array(z.string()),
@@ -189,7 +189,7 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
       ),
       patterns: z.array(
         z.object({
-          category: z.string(),
+          category: z.string().describe("Category for the companion description, e.g. workflow-habit, debug-approach, learning-style."),
           description: z.string(),
         })
       ),
@@ -261,7 +261,10 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
             items: {
               type: "object",
               properties: {
-                category: { type: "string" },
+                category: {
+                  type: "string",
+                  description: "Category for the companion description, e.g. coding-style.",
+                },
                 description: { type: "string" },
                 confidence: { type: "number", minimum: 0, maximum: 1 },
                 evidence: { type: "array", items: { type: "string" }, maxItems: 3 },
@@ -274,7 +277,11 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
             items: {
               type: "object",
               properties: {
-                category: { type: "string" },
+                category: {
+                  type: "string",
+                  description:
+                    "Category for the companion description, e.g. workflow-habit, debug-approach, learning-style.",
+                },
                 description: { type: "string" },
               },
               required: ["category", "description"],
