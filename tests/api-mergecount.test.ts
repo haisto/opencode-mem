@@ -29,7 +29,8 @@ const apiHandlersUrl = new URL(
 // ---------------------------------------------------------------------------
 // Mock state
 // ---------------------------------------------------------------------------
-let mockShards: any[] = [];
+let mockUserShards: any[] = [];
+let mockProjectShards: any[] = [];
 let mockMemories: any[] = [];
 let mockDb: any;
 
@@ -38,7 +39,8 @@ let mockDb: any;
 // ---------------------------------------------------------------------------
 mock.module(shardManagerUrl, () => ({
   shardManager: {
-    getAllShards: () => mockShards,
+    getAllShards: (scope: string) =>
+      scope === "user" ? mockUserShards : mockProjectShards,
   },
 }));
 
@@ -97,7 +99,8 @@ function makeMemory(overrides: Record<string, any> = {}) {
 
 describe("handleListMemories mergeCount", () => {
   beforeEach(() => {
-    mockShards = [{ id: 1, scope: "project", scopeHash: "test", shardIndex: 0, dbPath: ":memory:", vectorCount: 0, isActive: true, createdAt: Date.now() }];
+    mockUserShards = [];
+    mockProjectShards = [{ id: 1, scope: "project", scopeHash: "test", shardIndex: 0, dbPath: ":memory:", vectorCount: 0, isActive: true, createdAt: Date.now() }];
     mockDb = {
       prepare: () => ({
         run: () => ({ changes: 1 }),
@@ -139,5 +142,13 @@ describe("handleListMemories mergeCount", () => {
     const survivor = result.data!.items.find((i: any) => i.id === "mem_004");
     expect(survivor).toBeDefined();
     expect(survivor!.mergeCount).toBe(3);
+  });
+
+  it("handles null merge_count in DB gracefully", async () => {
+    mockMemories = [makeMemory({ id: "mem_null", merge_count: null })];
+    const { handleListMemories } = await import(apiHandlersUrl);
+    const result = await handleListMemories();
+    expect(result.success).toBe(true);
+    expect(result.data!.items[0]).toHaveProperty("mergeCount", 0);
   });
 });

@@ -45,6 +45,7 @@ let mockDbRunResult: { changes: number } = { changes: 1 };
 let mockDbGetResult: any = null;
 let mockCleanupShouldRun = false;
 let mockCleanupDeleted = 0;
+let mockDbRunCalls: { sql: string; args: any[] }[] = [];
 
 // ---------------------------------------------------------------------------
 // Module-level mocks – arrow closures capture the *variable* not its value,
@@ -61,11 +62,18 @@ mock.module(shardManagerUrl, () => ({
 mock.module(connectionManagerUrl, () => ({
   connectionManager: {
     getConnection: () => ({
-      prepare: (_sql: string) => ({
-        run: (..._args: any[]) => mockDbRunResult,
+      prepare: (sql: string) => ({
+        run: (...args: any[]) => {
+          mockDbRunCalls.push({ sql, args });
+          return mockDbRunResult;
+        },
         get: () => mockDbGetResult,
         all: () => mockMemories,
       }),
+      // bun:sqlite-compatible transaction wrapper: returns a callable that
+      // delegates to fn (the mock executes fn directly; BEGIN/COMMIT/ROLLBACK
+      // are no-ops in test since all ops go through the mock prepare layer).
+      transaction: <T extends (...args: any[]) => any>(fn: T): T => fn,
     }),
   },
 }));
@@ -153,6 +161,7 @@ beforeEach(() => {
   mockDbGetResult = null;
   mockCleanupShouldRun = false;
   mockCleanupDeleted = 0;
+  mockDbRunCalls = [];
   // Reset mutable config to defaults
   mockConfigData.deduplicationEnabled = true;
   mockConfigData.autoCleanupEnabled = true;
@@ -488,6 +497,65 @@ describe("ConsolidationService", () => {
       expect(result.phase2Superseded).toBe(0);
     });
 
+    it("skips pinned memories from being superseded (pinned protection)", async () => {
+      mockUserShards = [
+        {
+          dbPath: "/tmp/test.db",
+          id: "shard_1",
+          container: "test",
+          vectorCount: 3,
+        },
+      ];
+      // 3 memories: 1 pinned (high similarity to others), 2 non-pinned (also similar)
+      mockMemories = [
+        makeMemory(
+          "mem_pinned",
+          "Important pinned content",
+          "opencode_project_abc",
+          1000,
+          [1, 0, 0, 0, 0],
+        ),
+        makeMemory(
+          "mem_a",
+          "Regular content A",
+          "opencode_project_abc",
+          2000,
+          [0.7, 0.2, 0, 0, 0],
+        ),
+        makeMemory(
+          "mem_b",
+          "Regular content B",
+          "opencode_project_abc",
+          3000,
+          [0.7, 0.2, 0, 0, 0],
+        ),
+      ];
+      // Mark the first memory as pinned
+      mockMemories[0].is_pinned = 1;
+      mockDbRunResult = { changes: 1 };
+      mockDbGetResult = null;
+
+      const { ConsolidationService } = await import(
+        "../src/services/evolution/consolidation-service.js"
+      );
+      const svc = new ConsolidationService();
+
+      const result = await svc.run();
+
+      // Pinned memory is excluded from groups → only mem_a and mem_b remain
+      // mem_a and mem_b have high similarity (≈0.96), so they should merge
+      expect(result.phase2Merged).toBe(1);
+      expect(result.phase2Superseded).toBe(1);
+
+      // Verify no superseded_by UPDATE was run for the pinned memory
+      const pinnedUpdates = mockDbRunCalls.filter(
+        (c) =>
+          c.sql.includes("UPDATE memories SET superseded_by") &&
+          c.args.includes("mem_pinned"),
+      );
+      expect(pinnedUpdates.length).toBe(0);
+    });
+
     it("filters by projectTag (only merges memories matching the tag)", async () => {
       mockProjectShards = [
         {
@@ -625,6 +693,61 @@ describe("ConsolidationService", () => {
       (svc as any).isRunning = true;
 
       await expect(svc.run()).rejects.toThrow("Consolidation already running");
+    });
+
+    it("merges content with separator when memories have different content", async () => {
+      mockUserShards = [
+        {
+          dbPath: "/tmp/test.db",
+          id: "shard_1",
+          container: "test",
+          vectorCount: 2,
+        },
+      ];
+      // Two memories with similar vectors but different content
+      mockMemories = [
+        makeMemory(
+          "mem_older",
+          "Original content alpha",
+          "opencode_project_abc",
+          1000,
+          [1, 0, 0, 0, 0],
+        ),
+        makeMemory(
+          "mem_newer",
+          "Different content beta",
+          "opencode_project_abc",
+          2000,
+          [0.7, 0.2, 0, 0, 0],
+        ),
+      ];
+      // Return existing state for the survivor when SELECT runs during merge
+      mockDbGetResult = { merged_from: null, merge_count: 0 };
+      mockDbRunResult = { changes: 1 };
+
+      const { ConsolidationService } = await import(
+        "../src/services/evolution/consolidation-service.js"
+      );
+      const svc = new ConsolidationService();
+
+      const result = await svc.run();
+
+      // The near-duplicate pair should be merged
+      expect(result.phase2Merged).toBe(1);
+      expect(result.phase2Superseded).toBe(1);
+
+      // Find the combined UPDATE call (merged_from, merge_count, content now atomic)
+      const contentUpdate = mockDbRunCalls.find(
+        (c) =>
+          c.sql.includes("merged_from") &&
+          c.sql.includes("merge_count") &&
+          c.sql.includes("content") &&
+          c.args[2]?.includes("---"),
+      );
+      expect(contentUpdate).toBeDefined();
+      expect(contentUpdate!.args[2]).toContain("Original content alpha");
+      expect(contentUpdate!.args[2]).toContain("Different content beta");
+      expect(contentUpdate!.args[2]).toContain("---");
     });
   });
 });
