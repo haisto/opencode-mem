@@ -103,6 +103,7 @@ const translations = {
     "badge-memory": "MEMORY",
     "badge-pinned": "PINNED",
     "badge-linked": "LINKED",
+    "badge-merged": "Merged",
     "date-created": "Created:",
     "date-updated": "Updated:",
     "empty-preferences": "No preferences learned yet",
@@ -241,6 +242,7 @@ const translations = {
     "badge-memory": "记忆",
     "badge-pinned": "已置顶",
     "badge-linked": "已关联",
+    "badge-merged": "已合并",
     "date-created": "创建于:",
     "date-updated": "更新于:",
     "empty-preferences": "尚未学习到偏好设置",
@@ -395,6 +397,7 @@ const translations = {
     "badge-memory": "ذكرى",
     "badge-pinned": "مثبتة",
     "badge-linked": "مرتبطة",
+    "badge-merged": "مدمجة",
 
     "date-created": "تاريخ الإنشاء:",
     "date-updated": "تاريخ التحديث:",

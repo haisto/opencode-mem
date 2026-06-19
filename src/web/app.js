@@ -190,6 +190,7 @@ function renderCombinedCard(pair) {
             ${memory.memoryType ? `<span class="badge badge-type">${memory.memoryType}</span>` : ""}
             ${similarityHtml}
             ${isPinned ? `<span class="badge badge-pinned">${t("badge-pinned")}</span>` : ""}
+            ${isMerged ? `<span class="badge badge-merged">${t("badge-merged")}</span>` : ""}
             <span class="memory-display-name">${escapeHtml(memory.displayName || memory.id)}</span>
           </div>
           <div class="memory-actions">
@@ -247,7 +248,7 @@ function renderMemoryCard(memory) {
   const isLinked = !!memory.linkedPromptId;
   const similarityHtml =
     memory.similarity !== undefined
-      ? `<span class="similarity-score">${memory.similarity}%</span>`
+      ? `<span class="similarity-score">${Math.round(memory.similarity * 100)}%</span>`
       : "";
 
   let displayInfo = memory.displayName || memory.id;
@@ -290,6 +291,7 @@ function renderMemoryCard(memory) {
           ${isLinked ? `<span class="badge badge-linked"><i data-lucide="link" class="icon-sm"></i> ${t("badge-linked")}</span>` : ""}
           ${similarityHtml}
           ${isPinned ? `<span class="badge badge-pinned">${t("badge-pinned")}</span>` : ""}
+          ${isMerged ? `<span class="badge badge-merged">${t("badge-merged")}</span>` : ""}
           <span class="memory-display-name">${escapeHtml(displayInfo)}</span>
           ${subtitle}
         </div>
