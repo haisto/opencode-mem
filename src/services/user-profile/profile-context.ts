@@ -182,8 +182,8 @@ export async function getUserProfileContext(userId: string, userMessage?: string
     if (scored.length > 0) {
       parts.push("User Preferences:");
       scored.forEach(({ item, score }) => {
-        const pct = Math.round(score * 100);
-        parts.push(`- [${pct}%] [${item.category}] ${item.description}`);
+        const pct = score > 0 ? `[${Math.round(score * 100)}%] ` : "";
+        parts.push(`- ${pct}[${item.category}] ${item.description}`);
       });
     }
   }
@@ -209,8 +209,8 @@ export async function getUserProfileContext(userId: string, userMessage?: string
     if (scored.length > 0) {
       parts.push("\nUser Patterns:");
       scored.forEach(({ item, score }) => {
-        const pct = Math.round(score * 100);
-        parts.push(`- [${pct}%] [${item.category}] ${item.description}`);
+        const pct = score > 0 ? `[${Math.round(score * 100)}%] ` : "";
+        parts.push(`- ${pct}[${item.category}] ${item.description}`);
       });
     }
   }
@@ -235,8 +235,8 @@ export async function getUserProfileContext(userId: string, userMessage?: string
     if (scored.length > 0) {
       parts.push("\nUser Workflows:");
       scored.forEach(({ item, score }) => {
-        const pct = Math.round(score * 100);
-        parts.push(`- [${pct}%] ${item.description}`);
+        const pct = score > 0 ? `[${Math.round(score * 100)}%] ` : "";
+        parts.push(`- ${pct}${item.description}`);
       });
     }
   }
