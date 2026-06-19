@@ -110,7 +110,10 @@ function buildUserAnalysisContext(
 
 ${existingProfile.profileData}
 
-**Instructions**: Merge new insights with the existing profile. Update confidence scores for reinforced patterns, add new patterns, and refine existing ones.`
+  **Instructions**: Merge new insights with the existing profile. Update confidence scores for reinforced patterns, add new patterns, and refine existing ones.
+> Note: When updating existing preferences, preserve their original category labels. Only create a new category when the preference genuinely belongs to a new type.
+> Important: Category and description MUST use the same language as the user's prompts.
+`
     : `
 **Instructions**: Create a new user profile from scratch based on the prompts below.`;
 
@@ -130,8 +133,10 @@ This profile is **cross-project** — it should capture the user's personal styl
 
 Identify and ${existingProfile ? "update" : "create"}:
 
-1. **Preferences** (max ${CONFIG.userProfileMaxPreferences})
+ 1. **Preferences** (max ${CONFIG.userProfileMaxPreferences})
    - Code style, communication style, tool preferences
+   - Category must describe the TYPE of preference, NOT its value or intensity (e.g. in English: "coding-style", in Chinese: "编码风格")
+   - Category and description must be in the SAME language as the user's prompts
    - Assign confidence 0.5-1.0 based on evidence strength
    - Include 1-3 example prompts as evidence
 
