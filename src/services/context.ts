@@ -12,15 +12,15 @@ interface MemoriesResponseMinimal {
   results?: MemoryResultMinimal[];
 }
 
-export function formatContextForPrompt(
+export async function formatContextForPrompt(
   userId: string | null,
   projectMemories: MemoriesResponseMinimal,
   userMessage?: string
-): string {
+): Promise<string> {
   const parts: string[] = ["[MEMORY]"];
 
   if (CONFIG.injectProfile && userId) {
-    const profileContext = getUserProfileContext(userId, userMessage);
+    const profileContext = await getUserProfileContext(userId, userMessage);
     if (profileContext) {
       parts.push("\n" + profileContext);
     }

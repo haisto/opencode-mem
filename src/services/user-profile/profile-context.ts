@@ -1,6 +1,15 @@
 import { userProfileManager } from "./user-profile-manager.js";
 import type { UserProfileData } from "./types.js";
 import { CONFIG } from "../../config.js";
+import { embeddingService } from "../embedding.js";
+
+/**
+ * Minimal constraint for items that can be scored by embedding/filtering.
+ */
+interface ScoredItem {
+  description: string;
+  category?: string;
+}
 
 /**
  * Compute relevance score between a query and a target text.
@@ -65,16 +74,17 @@ function extractTerms(text: string): string[] {
 
 /**
  * Filter items by relevance to query.
- * When query is empty/undefined, returns top items (must be pre-sorted).
+ * Returns scored items sorted by relevance. When query is empty/undefined,
+ * returns top items with score 0 (must be pre-sorted).
  */
-function filterRelevant<T>(
+function filterRelevant<T extends ScoredItem>(
   items: T[],
   query: string | undefined,
   maxItems: number,
   getText: (item: T) => string
-): T[] {
+): Array<{ item: T; score: number }> {
   if (!query || !query.trim()) {
-    return items.slice(0, maxItems);
+    return items.slice(0, maxItems).map((item) => ({ item, score: 0 }));
   }
 
   const q = query.trim();
@@ -88,20 +98,55 @@ function filterRelevant<T>(
     .filter(({ score }) => score > 0)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      return a.index - b.index; // preserve original order
+      return a.index - b.index;
     })
-    .slice(0, maxItems)
-    .map(({ item }) => item);
+    .slice(0, maxItems);
 
   // Fallback: no items matched the query, return default top maxItems
   if (matched.length === 0) {
-    return items.slice(0, maxItems);
+    return items.slice(0, maxItems).map((item) => ({ item, score: 0 }));
   }
 
   return matched;
 }
 
-export function getUserProfileContext(userId: string, userMessage?: string): string | null {
+/**
+ * Filter items by embedding similarity to the user message.
+ * Returns scored items whose cosine similarity >= threshold, sorted by similarity.
+ */
+async function filterByEmbedding<T extends ScoredItem>(
+  items: T[],
+  query: string,
+  threshold: number,
+  getEmbeddingId: (item: T) => string | undefined,
+): Promise<Array<{ item: T; score: number }>> {
+  if (!query || items.length === 0) return [];
+
+  const queryVec = await embeddingService.embedWithTimeout(query);
+  const scored: Array<{ item: T; score: number }> = [];
+
+  for (const item of items) {
+    const id = getEmbeddingId(item);
+    if (!id) continue;
+    const storedVec = userProfileManager.getEmbeddingVector(id);
+    if (!storedVec) continue;
+    const score = userProfileManager.computeCosineSimilarity(
+      Array.from(queryVec),
+      Array.from(storedVec),
+    );
+    if (score >= threshold) {
+      scored.push({ item, score });
+    }
+  }
+
+  return scored.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Build profile context string for injection into the assistant's prompt.
+ * Uses embedding-first semantic matching, falling back to CJK keyword matching.
+ */
+export async function getUserProfileContext(userId: string, userMessage?: string): Promise<string | null> {
   const profile = userProfileManager.getActiveProfile(userId);
 
   if (!profile) {
@@ -117,33 +162,81 @@ export function getUserProfileContext(userId: string, userMessage?: string): str
 
   if (profileData.preferences.length > 0) {
     const items = [...profileData.preferences].sort((a, b) => b.confidence - a.confidence);
-    const relevant = filterRelevant(items, userMessage, prefMax, (p) => `${p.category} ${p.description}`);
-    if (relevant.length > 0) {
+    const threshold = CONFIG.similarityThreshold ?? 0.6;
+    let scored = userMessage
+      ? await filterByEmbedding(items, userMessage, threshold, (p) => p.embeddingId)
+      : [];
+    if (scored.length < prefMax) {
+      // Fallback: CJK keyword matching for items not already matched by embedding
+      const fallback = filterRelevant(items, userMessage, prefMax, (p) => `${p.category} ${p.description}`);
+      const existingKeys = new Set(scored.map((s) => `${s.item.category}|${s.item.description}`));
+      for (const { item, score } of fallback) {
+        const key = `${item.category}|${item.description}`;
+        if (!existingKeys.has(key)) {
+          scored.push({ item, score });
+          existingKeys.add(key);
+        }
+      }
+      scored = scored.slice(0, prefMax);
+    }
+    if (scored.length > 0) {
       parts.push("User Preferences:");
-      relevant.forEach((pref) => {
-        parts.push(`- [${pref.category}] ${pref.description}`);
+      scored.forEach(({ item, score }) => {
+        const pct = Math.round(score * 100);
+        parts.push(`- [${pct}%] [${item.category}] ${item.description}`);
       });
     }
   }
 
   if (profileData.patterns.length > 0) {
     const items = [...profileData.patterns].sort((a, b) => b.frequency - a.frequency);
-    const relevant = filterRelevant(items, userMessage, patternMax, (p) => `${p.category} ${p.description}`);
-    if (relevant.length > 0) {
+    const threshold = CONFIG.similarityThreshold ?? 0.6;
+    let scored = userMessage
+      ? await filterByEmbedding(items, userMessage, threshold, (p) => p.embeddingId)
+      : [];
+    if (scored.length < patternMax) {
+      const fallback = filterRelevant(items, userMessage, patternMax, (p) => `${p.category} ${p.description}`);
+      const existingKeys = new Set(scored.map((s) => `${s.item.category}|${s.item.description}`));
+      for (const { item, score } of fallback) {
+        const key = `${item.category}|${item.description}`;
+        if (!existingKeys.has(key)) {
+          scored.push({ item, score });
+          existingKeys.add(key);
+        }
+      }
+      scored = scored.slice(0, patternMax);
+    }
+    if (scored.length > 0) {
       parts.push("\nUser Patterns:");
-      relevant.forEach((pattern) => {
-        parts.push(`- [${pattern.category}] ${pattern.description}`);
+      scored.forEach(({ item, score }) => {
+        const pct = Math.round(score * 100);
+        parts.push(`- [${pct}%] [${item.category}] ${item.description}`);
       });
     }
   }
 
   if (profileData.workflows.length > 0) {
     const items = [...profileData.workflows].sort((a, b) => b.frequency - a.frequency);
-    const relevant = filterRelevant(items, userMessage, workflowMax, (w) => w.description);
-    if (relevant.length > 0) {
+    const threshold = CONFIG.similarityThreshold ?? 0.6;
+    let scored = userMessage
+      ? await filterByEmbedding(items, userMessage, threshold, (w) => w.embeddingId)
+      : [];
+    if (scored.length < workflowMax) {
+      const fallback = filterRelevant(items, userMessage, workflowMax, (w) => w.description);
+      const existingDescs = new Set(scored.map((s) => s.item.description));
+      for (const { item, score } of fallback) {
+        if (!existingDescs.has(item.description)) {
+          scored.push({ item, score });
+          existingDescs.add(item.description);
+        }
+      }
+      scored = scored.slice(0, workflowMax);
+    }
+    if (scored.length > 0) {
       parts.push("\nUser Workflows:");
-      relevant.forEach((workflow) => {
-        parts.push(`- ${workflow.description}`);
+      scored.forEach(({ item, score }) => {
+        const pct = Math.round(score * 100);
+        parts.push(`- [${pct}%] ${item.description}`);
       });
     }
   }

@@ -7,6 +7,7 @@ import { safeArray, safeObject } from "./profile-utils.js";
 import { logDebug } from "../logger.js";
 import type { ConfidenceStrategy } from "./confidence/confidence-strategy.js";
 import { createConfidenceStrategy } from "./confidence/confidence-factory.js";
+import { embeddingService } from "../embedding.js";
 
 const Database = getDatabase();
 type DatabaseType = typeof Database.prototype;
@@ -73,6 +74,16 @@ export class UserProfileManager {
     this.db.run(
       "CREATE INDEX IF NOT EXISTS idx_user_profile_changelogs_version ON user_profile_changelogs(version DESC)"
     );
+
+    // Fallback: migration may not have run yet when this constructor executes.
+    // The v2 migration in USER_PROFILE_MIGRATIONS also creates this table.
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS profile_embeddings (
+        id TEXT PRIMARY KEY,
+        embedding BLOB NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    `);
   }
 
   getActiveProfile(userId: string): UserProfile | null {
@@ -165,6 +176,21 @@ export class UserProfileManager {
       additionalPromptsAnalyzed,
       profileId
     );
+
+    // Reconcile: JSON is source of truth. Delete any embedding rows not
+    // referenced by any active profile, so the table never accumulates orphans.
+    const allProfiles = this.getAllActiveProfiles();
+    const allReferencedIds = new Set<string>();
+    for (const p of allProfiles) {
+      const data: UserProfileData = JSON.parse(p.profileData);
+      this.collectEmbeddingIds(data).forEach((id) => allReferencedIds.add(id));
+    }
+    const allEmbeddingRows = this.db.prepare(`SELECT id FROM profile_embeddings`).all() as any[];
+    for (const row of allEmbeddingRows) {
+      if (!allReferencedIds.has(row.id)) {
+        this.db.prepare(`DELETE FROM profile_embeddings WHERE id = ?`).run(row.id);
+      }
+    }
 
     this.addChangelog(profileId, newVersion, "update", changeSummary, cleanedData);
 
@@ -259,6 +285,53 @@ export class UserProfileManager {
     `);
 
     stmt.run(profileId, profileId, retentionCount);
+  }
+
+  /**
+   * Embed text and store vector in profile_embeddings table.
+   * Returns the generated embeddingId on success, or undefined if embedding fails
+   * (the caller degrades gracefully).
+   */
+  private async embedDescription(text: string): Promise<string | undefined> {
+    try {
+      const vec = await embeddingService.embedWithTimeout(text);
+      const id = `emb_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      this.db
+        .prepare(`INSERT INTO profile_embeddings (id, embedding, created_at) VALUES (?, ?, ?)`)
+        .run(id, Buffer.from(vec.buffer), Date.now());
+      return id;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Retrieve embedding vector by its ID from profile_embeddings table.
+   * Returns null if the ID no longer exists.
+   */
+  getEmbeddingVector(embeddingId: string): Float32Array | null {
+    const row = this.db
+      .prepare(`SELECT embedding FROM profile_embeddings WHERE id = ?`)
+      .get(embeddingId) as any;
+    if (!row || !row.embedding) return null;
+    return new Float32Array(row.embedding.buffer);
+  }
+
+  /**
+   * Collect all embeddingId values from preferences, patterns, and workflows.
+   */
+  private collectEmbeddingIds(data: UserProfileData): Set<string> {
+    const ids = new Set<string>();
+    for (const p of data.preferences) {
+      if (p.embeddingId) ids.add(p.embeddingId);
+    }
+    for (const p of data.patterns) {
+      if (p.embeddingId) ids.add(p.embeddingId);
+    }
+    for (const w of data.workflows) {
+      if (w.embeddingId) ids.add(w.embeddingId);
+    }
+    return ids;
   }
 
   getProfileChangelogs(profileId: string, limit: number = 10): UserProfileChangelog[] {
@@ -372,8 +445,20 @@ export class UserProfileManager {
   }
 
   deleteProfile(profileId: string): void {
-    const stmt = this.db.prepare(`DELETE FROM user_profiles WHERE id = ?`);
-    stmt.run(profileId);
+    const profile = this.getProfileById(profileId);
+    if (!profile) return;
+
+    const data: UserProfileData = JSON.parse(profile.profileData);
+    const ids = this.collectEmbeddingIds(data);
+
+    const deleteTx = this.db.transaction(() => {
+      for (const id of ids) {
+        this.db.prepare(`DELETE FROM profile_embeddings WHERE id = ?`).run(id);
+      }
+      this.db.prepare(`DELETE FROM user_profiles WHERE id = ?`).run(profileId);
+    });
+
+    deleteTx();
   }
 
   getProfileById(profileId: string): UserProfile | null {
@@ -417,19 +502,98 @@ export class UserProfileManager {
     };
   }
 
-  mergeProfileData(existing: UserProfileData, updates: Partial<UserProfileData>): UserProfileData {
+  /**
+   * Compute cosine similarity between two vectors.
+   * Returns a value in [0, 1] where 1 means identical direction.
+   */
+  computeCosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0;
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      const aVal = a[i] || 0;
+      const bVal = b[i] || 0;
+      dotProduct += aVal * bVal;
+      normA += aVal * aVal;
+      normB += bVal * bVal;
+    }
+    if (normA === 0 || normB === 0) return 0;
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  /**
+   * Merge incoming profile data with existing profile.
+   * Uses cosine similarity on description embeddings for semantic matching,
+   * falling back to exact string match for legacy data without embeddings.
+   */
+  async mergeProfileData(
+    existing: UserProfileData,
+    updates: Partial<UserProfileData>,
+  ): Promise<UserProfileData> {
     const merged: UserProfileData = {
       preferences: this.ensureArray(existing?.preferences),
       patterns: this.ensureArray(existing?.patterns),
       workflows: this.ensureArray(existing?.workflows),
     };
 
+    // Local flag ensures warmup runs at most once per mergeProfileData call,
+    // regardless of how many data sections need embedding.
+    let warmedUp = false;
+    const ensureWarmed = async () => {
+      if (!warmedUp) { await embeddingService.warmup(); warmedUp = true; }
+    };
+
+    // Lazy backfill: embed existing items missing embeddingId so legacy data
+    // gradually gains semantic matching capability on subsequent profile updates.
+    const needsBackfill =
+      merged.preferences.some((p) => !p.embeddingId) ||
+      merged.patterns.some((p) => !p.embeddingId) ||
+      merged.workflows.some((w) => !w.embeddingId);
+    if (needsBackfill) await ensureWarmed();
+    for (const pref of merged.preferences) {
+      if (!pref.embeddingId && pref.description) {
+        pref.embeddingId = await this.embedDescription(pref.description);
+      }
+    }
+    for (const pat of merged.patterns) {
+      if (!pat.embeddingId && pat.description) {
+        pat.embeddingId = await this.embedDescription(pat.description);
+      }
+    }
+    for (const wf of merged.workflows) {
+      if (!wf.embeddingId && wf.description) {
+        wf.embeddingId = await this.embedDescription(wf.description);
+      }
+    }
+
     if (updates.preferences) {
       const incomingPrefs = this.ensureArray(updates.preferences);
+
+      // Warmup once before embedding batch
+      const needsEmbed = incomingPrefs.some((p) => !p.embeddingId);
+      if (needsEmbed) await ensureWarmed();
+
+      // Embed incoming preferences that don't have an embeddingId yet
       for (const newPref of incomingPrefs) {
-        const existingIndex = merged.preferences.findIndex(
-          (p) => p.category === newPref.category && p.description === newPref.description
-        );
+        if (!newPref.embeddingId && newPref.description) {
+          newPref.embeddingId = await this.embedDescription(newPref.description);
+        }
+      }
+
+      for (const newPref of incomingPrefs) {
+        const existingIndex = merged.preferences.findIndex((p) => {
+          if (p.embeddingId && newPref.embeddingId) {
+            const a = this.getEmbeddingVector(p.embeddingId);
+            const b = this.getEmbeddingVector(newPref.embeddingId);
+            if (a && b) {
+              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > 0.92) {
+                return true;
+              }
+            }
+          }
+          return p.category === newPref.category && p.description === newPref.description;
+        });
 
         if (existingIndex >= 0) {
           const existingItem = merged.preferences[existingIndex];
@@ -452,6 +616,7 @@ export class UserProfileManager {
                 ]),
               ].slice(0, 5),
               lastUpdated: Date.now(),
+              embeddingId: newPref.embeddingId || existingItem.embeddingId,
             };
           }
         } else {
@@ -465,10 +630,30 @@ export class UserProfileManager {
 
     if (updates.patterns) {
       const incomingPatterns = this.ensureArray(updates.patterns);
+
+      const needsEmbedPatterns = incomingPatterns.some((p) => !p.embeddingId);
+      if (needsEmbedPatterns) await ensureWarmed();
+
+      // Embed incoming patterns that don't have an embeddingId yet
       for (const newPattern of incomingPatterns) {
-        const existingIndex = merged.patterns.findIndex(
-          (p) => p.category === newPattern.category && p.description === newPattern.description
-        );
+        if (!newPattern.embeddingId && newPattern.description) {
+          newPattern.embeddingId = await this.embedDescription(newPattern.description);
+        }
+      }
+
+      for (const newPattern of incomingPatterns) {
+        const existingIndex = merged.patterns.findIndex((p) => {
+          if (p.embeddingId && newPattern.embeddingId) {
+            const a = this.getEmbeddingVector(p.embeddingId);
+            const b = this.getEmbeddingVector(newPattern.embeddingId);
+            if (a && b) {
+              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > 0.92) {
+                return true;
+              }
+            }
+          }
+          return p.category === newPattern.category && p.description === newPattern.description;
+        });
 
         if (existingIndex >= 0) {
           const existingItem = merged.patterns[existingIndex];
@@ -481,6 +666,7 @@ export class UserProfileManager {
                 newFreq > (existingItem.frequency || 1) * 1.5
                   ? Date.now()
                   : existingItem.lastSeen,
+              embeddingId: newPattern.embeddingId || existingItem.embeddingId,
             };
           }
         } else {
@@ -494,10 +680,32 @@ export class UserProfileManager {
 
     if (updates.workflows) {
       const incomingWorkflows = this.ensureArray(updates.workflows);
+
+      // Warmup once before embedding batch
+      const needsEmbedWorkflows = incomingWorkflows.some((w) => !w.embeddingId);
+      if (needsEmbedWorkflows) await ensureWarmed();
+
       for (const newWorkflow of incomingWorkflows) {
-        const existingIndex = merged.workflows.findIndex(
-          (w) => w.description === newWorkflow.description
-        );
+        if (!newWorkflow.embeddingId && newWorkflow.description) {
+          newWorkflow.embeddingId = await this.embedDescription(newWorkflow.description);
+        }
+      }
+
+      for (const newWorkflow of incomingWorkflows) {
+        const existingIndex = merged.workflows.findIndex((w) => {
+          // Use cosine similarity for semantic matching when both sides have embeddings
+          if (w.embeddingId && newWorkflow.embeddingId) {
+            const a = this.getEmbeddingVector(w.embeddingId);
+            const b = this.getEmbeddingVector(newWorkflow.embeddingId);
+            if (a && b) {
+              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > 0.92) {
+                return true;
+              }
+            }
+          }
+          // Fallback to exact string match for legacy data without embeddings
+          return w.description === newWorkflow.description;
+        });
 
         if (existingIndex >= 0) {
           const existingItem = merged.workflows[existingIndex];
@@ -510,6 +718,7 @@ export class UserProfileManager {
                 newFreq > (existingItem.frequency || 1) * 1.5
                   ? Date.now()
                   : existingItem.lastSeen,
+              embeddingId: newWorkflow.embeddingId || existingItem.embeddingId,
             };
           }
         } else {
@@ -533,7 +742,7 @@ export class UserProfileManager {
         return [];
       }
     }
-    return Array.isArray(val) ? val : [];
+    return Array.isArray(val) ? [...val] : [];
   }
 }
 

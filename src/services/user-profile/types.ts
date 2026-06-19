@@ -5,6 +5,11 @@ export interface UserProfilePreference {
   evidence: string[];
   lastUpdated: number;
   matchCount?: number;
+  /**
+   * Reference to the embedding vector stored in profile_embeddings table.
+   * Used for semantic matching during merge; legacy data may lack this field.
+   */
+  embeddingId?: string;
 }
 
 export interface UserProfilePattern {
@@ -12,6 +17,11 @@ export interface UserProfilePattern {
   description: string;
   frequency: number;
   lastSeen: number;
+  /**
+   * Reference to the embedding vector stored in profile_embeddings table.
+   * Used for semantic matching during merge; legacy data may lack this field.
+   */
+  embeddingId?: string;
 }
 
 export interface UserProfileWorkflow {
@@ -19,6 +29,11 @@ export interface UserProfileWorkflow {
   steps: string[];
   frequency: number;
   lastSeen: number;
+  /**
+   * Reference to the embedding vector stored in profile_embeddings table.
+   * Used for semantic matching during merge; legacy data may lack this field.
+   */
+  embeddingId?: string;
 }
 
 export interface UserProfileData {

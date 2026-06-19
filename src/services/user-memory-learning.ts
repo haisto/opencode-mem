@@ -324,7 +324,7 @@ Use the update_user_profile tool to save the ${existingProfile ? "updated" : "ne
 
   if (existingProfile) {
     const existingData: UserProfileData = JSON.parse(existingProfile.profileData);
-    return userProfileManager.mergeProfileData(existingData, rawData);
+    return await userProfileManager.mergeProfileData(existingData, rawData);
   }
 
   return rawData as UserProfileData;
