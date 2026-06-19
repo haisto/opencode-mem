@@ -3,11 +3,23 @@
  * Exercises the write path added to src/index.ts `profile` mode
  * by testing the underlying manager directly (no live plugin context needed).
  */
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { connectionManager } from "../src/services/sqlite/connection-manager.js";
+
+// Mock embedding service to avoid loading ML models in tests
+const embeddingUrl = new URL(
+  "../src/services/embedding.js",
+  import.meta.url,
+).href;
+mock.module(embeddingUrl, () => ({
+  embeddingService: {
+    warmup: () => Promise.resolve(),
+    embedWithTimeout: () => Promise.resolve(new Float32Array(768)),
+  },
+}));
 
 // We patch CONFIG.storagePath before importing the manager so the DB lands in tmp.
 let tmpDir: string;
@@ -104,7 +116,7 @@ describe("UserProfileManager – explicit preference writes", () => {
       lastUpdated: Date.now(),
     };
 
-    const merged = mgr.mergeProfileData(existingData, { preferences: [newPref] });
+    const merged = await mgr.mergeProfileData(existingData, { preferences: [newPref] });
     mgr.updateProfile(
       existingProfile.id,
       merged,
@@ -151,7 +163,7 @@ describe("UserProfileManager – explicit preference writes", () => {
     // Write the same preference again (simulates calling profile+content twice)
     const p1 = mgr.getActiveProfile(userId)!;
     const d1 = JSON.parse(p1.profileData);
-    const merged = mgr.mergeProfileData(d1, {
+    const merged = await mgr.mergeProfileData(d1, {
       preferences: [{ ...pref, lastUpdated: Date.now() }],
     });
     mgr.updateProfile(p1.id, merged, 0, "Explicit preference added: Prefer short answers");
@@ -192,7 +204,7 @@ describe("UserProfileManager – explicit preference writes", () => {
 
     const p = mgr.getActiveProfile(userId)!;
     const d = JSON.parse(p.profileData);
-    const merged = mgr.mergeProfileData(d, {
+    const merged = await mgr.mergeProfileData(d, {
       preferences: [
         {
           category: "explicit",
@@ -207,7 +219,8 @@ describe("UserProfileManager – explicit preference writes", () => {
 
     const changelogs = mgr.getProfileChangelogs(p.id);
     const last = changelogs[0];
-    expect(last.changeSummary).toBe(summary);
-    expect(last.changeType).toBe("update");
+    expect(last).toBeDefined();
+    expect(last!.changeSummary).toBe(summary);
+    expect(last!.changeType).toBe("update");
   });
 });
