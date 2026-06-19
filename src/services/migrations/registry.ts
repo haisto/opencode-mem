@@ -85,4 +85,25 @@ export const USER_PROMPT_MIGRATIONS: readonly Migration[] = [
 
 export const USER_PROFILE_MIGRATIONS: readonly Migration[] = [
   { version: 1, description: "Baseline schema", up: () => {} },
+
+  /**
+   * v2 — Add profile_embeddings table for vector-based preference matching.
+   *
+   * Stores description embeddings in a separate table referenced by
+   * `embeddingId` on each preference/pattern, avoiding JSON blob bloat
+   * and enabling efficient BLOB storage for float32 vectors.
+   */
+  {
+    version: 2,
+    description: "Create profile_embeddings table",
+    up: (db: any) => {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS profile_embeddings (
+          id TEXT PRIMARY KEY,
+          embedding BLOB NOT NULL,
+          created_at INTEGER NOT NULL
+        )
+      `);
+    },
+  },
 ];

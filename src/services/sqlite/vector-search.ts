@@ -239,9 +239,20 @@ export class VectorSearch {
 
   /**
    * Remove vector index entries for a memory without deleting the SQLite row.
+   * Also NULLs the vector/tags_vector columns so countVectors stays accurate.
    * Used by the consolidation pipeline to keep the superseded_by audit trail.
    */
   async removeVectorIndex(db: DatabaseType, memoryId: string, shard: ShardInfo): Promise<void> {
+    await this.removeVectorBackendEntries(memoryId, shard);
+
+    db.prepare(`UPDATE memories SET vector = NULL, tags_vector = NULL WHERE id = ?`).run(memoryId);
+  }
+
+  /**
+   * Delete vector backend entries for a memory without touching SQLite.
+   * Used when the SQLite row has already been removed (e.g. inside a transaction).
+   */
+  async removeVectorBackendEntries(memoryId: string, shard: ShardInfo): Promise<void> {
     const backend = await this.getBackend();
     await backend.delete({ id: memoryId, shard, kind: "content" });
     await backend.delete({ id: memoryId, shard, kind: "tags" });

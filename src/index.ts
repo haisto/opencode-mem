@@ -221,7 +221,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
         };
 
         const userId = tags.user.userEmail || null;
-        const memoryContext = formatContextForPrompt(userId, projectMemories, userMessage);
+        const memoryContext = await formatContextForPrompt(userId, projectMemories, userMessage);
 
         if (memoryContext) {
           logDebug("inject: memoryContext", { context: memoryContext });
@@ -414,7 +414,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
 
                   if (existingProfile) {
                     const existingData = JSON.parse(existingProfile.profileData);
-                    const mergedData = userProfileManager.mergeProfileData(existingData, {
+                    const mergedData = await userProfileManager.mergeProfileData(existingData, {
                       preferences: [newPreference],
                     });
                     userProfileManager.updateProfile(

@@ -79,6 +79,19 @@ export class CleanupService {
           )
           .all(cutoffTime) as any[];
 
+        const deleteTransaction = db.transaction((memoryId: string) => {
+          // Re-verify: another process may have marked this as superseded since SELECT
+          const current = db
+            .prepare("SELECT superseded_by FROM memories WHERE id = ?")
+            .get(memoryId) as any;
+          if (current?.superseded_by) {
+            return "SKIPPED";
+          }
+
+          db.prepare(`DELETE FROM memories WHERE id = ?`).run(memoryId);
+          return "DELETED";
+        });
+
         for (const memory of oldMemories) {
           try {
             if (memory.is_pinned === 1) {
@@ -90,7 +103,11 @@ export class CleanupService {
               continue;
             }
 
-            await vectorSearch.deleteVector(db, memory.id, shard);
+            const result = deleteTransaction(memory.id);
+            if (result === "SKIPPED") continue;
+
+            // Vec backend cleanup (async, outside transaction)
+            await vectorSearch.removeVectorBackendEntries(memory.id, shard);
             shardManager.decrementVectorCount(shard.id);
             totalDeleted++;
 
