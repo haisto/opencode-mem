@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { stripJsoncComments } from "./services/jsonc.js";
 import { resolveSecretValue } from "./services/secret-resolver.js";
+import type { LogLevel } from "./services/logger.js";
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode");
 const DATA_DIR = join(homedir(), ".opencode-mem");
@@ -20,6 +21,21 @@ if (!existsSync(DATA_DIR)) {
 }
 
 interface OpenCodeMemConfig {
+  /**
+   * Logging configuration.
+   */
+  logging?: {
+    /**
+     * Log level. Defaults to "info".
+     * "trace" is most verbose, "error" is least.
+     */
+    level?: LogLevel;
+    /**
+     * Log file path. Falls back to OPENCODE_MEM_LOG_FILE env var,
+     * then to ~/.opencode-mem/opencode-mem.log.
+     */
+    logFile?: string;
+  };
   storagePath?: string;
   userEmailOverride?: string;
   userNameOverride?: string;
@@ -167,6 +183,9 @@ const DEFAULTS: Required<
     defaultScope?: "project" | "all-projects";
   };
 } = {
+  logging: {
+    level: "info",
+  },
   storagePath: join(DATA_DIR, "data"),
   embeddingModel: "Xenova/nomic-embed-text-v1",
   embeddingDimensions: 768,
@@ -259,6 +278,20 @@ function loadConfigFromPaths(paths: string[]): OpenCodeMemConfig {
 }
 
 const CONFIG_TEMPLATE = `{
+  // ============================================
+  // Logging Settings
+  // ============================================
+
+  // Log level: "trace" | "debug" | "info" | "warn" | "error"
+  // "trace" is most verbose, "error" is least.
+  // Can also be set via OPENCODE_MEM_TRACE or OPENCODE_MEM_DEBUG env vars.
+  "logging": {
+    "level": "info",
+    // Log file path. Falls back to OPENCODE_MEM_LOG_FILE env var,
+    // then to ~/.opencode-mem/opencode-mem.log.
+    // "logFile": "~/.opencode-mem/opencode-mem.log"
+  },
+  
   // ============================================
   // OpenCode Memory Plugin Configuration
   // ============================================
@@ -691,6 +724,10 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
       enabled: fileConfig.consolidation?.enabled ?? DEFAULTS.consolidation.enabled,
       mergeThreshold: fileConfig.consolidation?.mergeThreshold ?? DEFAULTS.consolidation.mergeThreshold,
       minIntervalMs: fileConfig.consolidation?.minIntervalMs ?? DEFAULTS.consolidation.minIntervalMs,
+    },
+    logging: {
+      level: fileConfig.logging?.level ?? DEFAULTS.logging.level,
+      logFile: fileConfig.logging?.logFile,
     },
   };
 }

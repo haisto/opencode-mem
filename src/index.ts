@@ -12,7 +12,7 @@ import { userPromptManager } from "./services/user-prompt/user-prompt-manager.js
 import { startWebServer, WebServer } from "./services/web-server.js";
 
 import { isConfigured, CONFIG, initConfig } from "./config.js";
-import { log, logDebug } from "./services/logger.js";
+import { log, logDebug, logInfo, setLogLevel, setLogFilePath, getLogLevel, getLogFilePath } from "./services/logger.js";
 import type { MemoryType } from "./types/index.js";
 import { getLanguageName } from "./services/language-detector.js";
 import type { MemoryScope } from "./services/client.js";
@@ -20,6 +20,9 @@ import type { MemoryScope } from "./services/client.js";
 export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
   const { directory } = ctx;
   initConfig(directory);
+  setLogLevel(CONFIG.logging.level ?? "info");
+  if (CONFIG.logging.logFile) setLogFilePath(CONFIG.logging.logFile);
+  logInfo("Logger initialized", { level: getLogLevel(), logFile: getLogFilePath() });
   const tags = getTags(directory);
   let webServer: WebServer | null = null;
   let idleTimeout: Timer | null = null;

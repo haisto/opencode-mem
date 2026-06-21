@@ -10,9 +10,10 @@ import {
 import { homedir } from "os";
 import { join } from "path";
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
+  trace: 0,
   debug: 1,
   info: 2,
   warn: 3,
@@ -20,6 +21,7 @@ const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
 };
 
 function getInitialLogLevel(): number {
+  if (process.env.OPENCODE_MEM_TRACE) return LOG_LEVEL_ORDER.trace;
   if (process.env.OPENCODE_MEM_DEBUG) return LOG_LEVEL_ORDER.debug;
   return LOG_LEVEL_ORDER.info;
 }
@@ -30,14 +32,21 @@ export function setLogLevel(level: LogLevel): void {
   currentLogLevel = LOG_LEVEL_ORDER[level];
 }
 
+let customLogFilePath: string | undefined;
+
+/** Override the log file path. Takes precedence over OPENCODE_MEM_LOG_FILE env var. */
+export function setLogFilePath(filePath: string): void {
+  customLogFilePath = filePath;
+}
+
 export function getLogLevel(): LogLevel {
   return (Object.entries(LOG_LEVEL_ORDER) as [LogLevel, number][]).find(
     ([_, v]) => v === currentLogLevel
   )?.[0] || "info";
 }
 
-function getLogFilePath(): string {
-  return process.env.OPENCODE_MEM_LOG_FILE || join(homedir(), ".opencode-mem", "opencode-mem.log");
+export function getLogFilePath(): string {
+  return customLogFilePath || process.env.OPENCODE_MEM_LOG_FILE || join(homedir(), ".opencode-mem", "opencode-mem.log");
 }
 
 function getLogDirPath(): string {
@@ -98,6 +107,10 @@ function writeLog(level: LogLevel, message: string, data?: unknown) {
 /** @deprecated Use logInfo/logWarn/logError/logDebug instead */
 export function log(message: string, data?: unknown) {
   writeLog("info", message, data);
+}
+
+export function logTrace(message: string, data?: unknown) {
+  writeLog("trace", message, data);
 }
 
 export function logDebug(message: string, data?: unknown) {
