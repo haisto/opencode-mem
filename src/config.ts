@@ -110,6 +110,13 @@ interface OpenCodeMemConfig {
    * @default 5
    */
   userProfileChangelogRetentionCount?: number;
+
+  /**
+   * Cosine similarity threshold for user profile merge (0-1).
+   * Items with similarity above this threshold are considered duplicates and merged.
+   * @default 0.92
+   */
+  userProfileMergeThreshold?: number;
   showAutoCaptureToasts?: boolean;
   showUserProfileToasts?: boolean;
   showErrorToasts?: boolean;
@@ -223,6 +230,7 @@ const DEFAULTS: Required<
    */
   userProfileConfidenceLearningRate: 0.3,
   userProfileChangelogRetentionCount: 5,
+  userProfileMergeThreshold: 0.92,
   showAutoCaptureToasts: true,
   showUserProfileToasts: true,
   showErrorToasts: true,
@@ -527,6 +535,9 @@ const CONFIG_TEMPLATE = `{
   // Older versions are automatically cleaned up
   "userProfileChangelogRetentionCount": 5,
   
+  // Cosine similarity threshold (0-1) for user profile merge
+  "userProfileMergeThreshold": 0.92,
+  
   // ============================================
   // Search Settings
   // ============================================
@@ -693,6 +704,8 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
       fileConfig.userProfileConfidenceLearningRate ?? DEFAULTS.userProfileConfidenceLearningRate,
     userProfileChangelogRetentionCount:
       fileConfig.userProfileChangelogRetentionCount ?? DEFAULTS.userProfileChangelogRetentionCount,
+    userProfileMergeThreshold:
+      fileConfig.userProfileMergeThreshold ?? DEFAULTS.userProfileMergeThreshold,
     showAutoCaptureToasts: fileConfig.showAutoCaptureToasts ?? DEFAULTS.showAutoCaptureToasts,
     showUserProfileToasts: fileConfig.showUserProfileToasts ?? DEFAULTS.showUserProfileToasts,
     showErrorToasts: fileConfig.showErrorToasts ?? DEFAULTS.showErrorToasts,

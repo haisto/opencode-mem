@@ -587,7 +587,7 @@ export class UserProfileManager {
             const a = this.getEmbeddingVector(p.embeddingId);
             const b = this.getEmbeddingVector(newPref.embeddingId);
             if (a && b) {
-              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > 0.92) {
+              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > (CONFIG.userProfileMergeThreshold ?? 0.92)) {
                 return true;
               }
             }
@@ -647,7 +647,7 @@ export class UserProfileManager {
             const a = this.getEmbeddingVector(p.embeddingId);
             const b = this.getEmbeddingVector(newPattern.embeddingId);
             if (a && b) {
-              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > 0.92) {
+              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > (CONFIG.userProfileMergeThreshold ?? 0.92)) {
                 return true;
               }
             }
@@ -698,7 +698,7 @@ export class UserProfileManager {
             const a = this.getEmbeddingVector(w.embeddingId);
             const b = this.getEmbeddingVector(newWorkflow.embeddingId);
             if (a && b) {
-              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > 0.92) {
+              if (this.computeCosineSimilarity(Array.from(a), Array.from(b)) > (CONFIG.userProfileMergeThreshold ?? 0.92)) {
                 return true;
               }
             }
