@@ -177,8 +177,8 @@ export async function getUserProfileContext(userId: string, userMessage?: string
           existingKeys.add(key);
         }
       }
-      scored = scored.slice(0, prefMax);
     }
+    scored = scored.slice(0, prefMax);
     if (scored.length > 0) {
       parts.push("User Preferences:");
       scored.forEach(({ item, score }) => {
@@ -204,8 +204,8 @@ export async function getUserProfileContext(userId: string, userMessage?: string
           existingKeys.add(key);
         }
       }
-      scored = scored.slice(0, patternMax);
     }
+    scored = scored.slice(0, patternMax);
     if (scored.length > 0) {
       parts.push("\nUser Patterns:");
       scored.forEach(({ item, score }) => {
@@ -230,8 +230,8 @@ export async function getUserProfileContext(userId: string, userMessage?: string
           existingDescs.add(item.description);
         }
       }
-      scored = scored.slice(0, workflowMax);
     }
+    scored = scored.slice(0, workflowMax);
     if (scored.length > 0) {
       parts.push("\nUser Workflows:");
       scored.forEach(({ item, score }) => {
