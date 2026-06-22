@@ -60,7 +60,7 @@ Publishing: push `v*` tag → GitHub Actions runs install → typecheck → buil
 6. **Chat message injection**: By default (`chatMessage.injectOn: "first"`), memories are only injected on the *first* user message of a session. Set to `"always"` to inject every turn.
 7. **Compaction handler**: After a `session.compacted` event, the plugin re-injects memories belonging to that session as synthetic text parts.
 8. **Idle processing**: `session.idle` triggers auto-capture + user profile learning + cleanup after a 10-second debounce.
-9. **Logger**: `~/.opencode-mem/opencode-mem.log` — auto-rotates at 5 MB. Can be overridden via `OPENCODE_MEM_LOG_FILE` env var.
+9. **Logger**: `~/.opencode-mem/opencode-mem.log` — auto-rotates at 5 MB. Can be overridden via `OPENCODE_MEM_LOG_FILE` env var. **`logger.log()` is deprecated** — use `logInfo()`/`logWarn()`/`logError()`/`logDebug()`/`logTrace()` instead.
 10. **Plugin warmup is tracked globally** (via `Symbol.for`): only runs once per process regardless of how many project directories share the same process.
 
 ## Testing
