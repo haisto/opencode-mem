@@ -553,7 +553,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput) => {
           } finally {
             idleTimeout = null;
           }
-        }, 10000);
+        }, CONFIG.idleTimeoutMs ?? 10000);
       }
 
       if (event.type === "session.compacted") {

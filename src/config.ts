@@ -117,6 +117,14 @@ interface OpenCodeMemConfig {
    * @default 0.92
    */
   userProfileMergeThreshold?: number;
+
+  /**
+   * Debounce delay in ms before idle processing starts.
+   * When a session.idle event fires, the plugin waits this long before
+   * running auto-capture, user profile learning, and consolidation.
+   * @default 10000
+   */
+  idleTimeoutMs?: number;
   showAutoCaptureToasts?: boolean;
   showUserProfileToasts?: boolean;
   showErrorToasts?: boolean;
@@ -231,6 +239,7 @@ const DEFAULTS: Required<
   userProfileConfidenceLearningRate: 0.3,
   userProfileChangelogRetentionCount: 5,
   userProfileMergeThreshold: 0.92,
+  idleTimeoutMs: 10000,
   showAutoCaptureToasts: true,
   showUserProfileToasts: true,
   showErrorToasts: true,
@@ -706,6 +715,7 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
       fileConfig.userProfileChangelogRetentionCount ?? DEFAULTS.userProfileChangelogRetentionCount,
     userProfileMergeThreshold:
       fileConfig.userProfileMergeThreshold ?? DEFAULTS.userProfileMergeThreshold,
+    idleTimeoutMs: fileConfig.idleTimeoutMs ?? DEFAULTS.idleTimeoutMs,
     showAutoCaptureToasts: fileConfig.showAutoCaptureToasts ?? DEFAULTS.showAutoCaptureToasts,
     showUserProfileToasts: fileConfig.showUserProfileToasts ?? DEFAULTS.showUserProfileToasts,
     showErrorToasts: fileConfig.showErrorToasts ?? DEFAULTS.showErrorToasts,
